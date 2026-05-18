@@ -300,58 +300,54 @@ const startLiveSession = async () => {
 </script>
 
 <section class="k-card overflow-hidden" aria-labelledby="setup-heading">
-  <div class="border-b border-white/10 p-5 sm:p-6">
-    <div class="grid gap-5 xl:grid-cols-[minmax(0,1fr)_22rem] xl:items-start">
-      <div class="max-w-3xl">
+  <div class="border-b border-white/10 p-4 sm:p-5">
+    <div class="flex flex-wrap items-start justify-between gap-3">
+      <div class="max-w-2xl">
         <p class="k-eyebrow">Guided setup</p>
-        <h2 id="setup-heading" class="mt-2 text-3xl font-bold tracking-tight text-white sm:text-4xl">
+        <h2 id="setup-heading" class="mt-1 text-2xl font-bold tracking-tight text-white sm:text-3xl">
           Build your board in 3 steps
         </h2>
-        <p class="mt-3 text-base leading-7 text-slate-300">
-          Start with the class roster, tune the board details, then review and launch a local or live display.
+        <p class="mt-2 text-sm leading-6 text-slate-300">
+          Roster, board details, then review and launch.
         </p>
       </div>
 
-      <section class="rounded-2xl border border-emerald-300/15 bg-emerald-300/8 p-4" aria-label="Setup status" aria-live="polite">
-        <p class="k-eyebrow">Status</p>
-        <p class="mt-2 text-sm leading-6 text-emerald-50">{status}</p>
+      <section class="inline-flex max-w-full items-start gap-2 rounded-full border border-emerald-300/20 bg-emerald-300/8 px-3 py-2 text-sm leading-5 text-emerald-50" aria-label="Setup status" aria-live="polite">
+        <span class="shrink-0 text-xs font-semibold uppercase tracking-[0.12em] text-emerald-200/80">Status</span>
+        <span>{status}</span>
       </section>
     </div>
 
-    <div class="mt-6 grid gap-3 sm:grid-cols-3">
-      <div class="k-stat">
-        <p class="k-eyebrow">Roster</p>
-        <p class="mt-1 text-2xl font-bold">{current.students.length}</p>
+    <dl class="mt-4 flex flex-wrap gap-x-5 gap-y-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-200" aria-label="Setup summary">
+      <div class="flex items-baseline gap-2">
+        <dt class="k-eyebrow">Roster</dt>
+        <dd class="font-bold text-white">{current.students.length}</dd>
       </div>
-      <div class="k-stat">
-        <p class="k-eyebrow">Rules</p>
-        <p class="mt-1 text-2xl font-bold">{current.rules.length}</p>
+      <div class="flex items-baseline gap-2">
+        <dt class="k-eyebrow">Rules</dt>
+        <dd class="font-bold text-white">{current.rules.length}</dd>
       </div>
-      <div class="k-stat">
-        <p class="k-eyebrow">Saved</p>
-        <p class="mt-1 truncate text-2xl font-bold">{templates.length}</p>
+      <div class="flex items-baseline gap-2">
+        <dt class="k-eyebrow">Saved</dt>
+        <dd class="font-bold text-white">{templates.length}</dd>
       </div>
-    </div>
+    </dl>
 
-    <nav class="mt-6" aria-label="Setup steps">
-      <ol class="grid gap-3 lg:grid-cols-3">
+    <nav class="mt-4" aria-label="Setup steps">
+      <ol class="flex flex-wrap gap-2">
         {#each setupSteps as step}
-          <li>
+          <li class="min-w-0">
             {#if currentStep === step.id}
-              <button class="flex h-full w-full gap-3 rounded-2xl border border-emerald-300/35 bg-emerald-300/12 p-4 text-left shadow-lg shadow-emerald-950/20 outline-none ring-2 ring-emerald-300/35" type="button" aria-current="step" aria-controls={step.panelId} onclick={() => goToStep(step.id)}>
-                <span class="grid size-10 shrink-0 place-items-center rounded-xl bg-emerald-300 text-sm font-bold text-slate-950">{step.number}</span>
-                <span>
-                  <span class="block font-semibold text-white">{step.label}</span>
-                  <span class="mt-1 block text-sm leading-6 text-emerald-50/90">{step.description}</span>
-                </span>
+              <button class="inline-flex min-h-11 items-center gap-2 rounded-full border border-emerald-300/45 bg-emerald-300/14 px-3 py-2 text-left text-sm font-semibold text-white outline-none ring-2 ring-emerald-300/35" type="button" aria-current="step" aria-controls={step.panelId} onclick={() => goToStep(step.id)}>
+                <span class="grid size-7 shrink-0 place-items-center rounded-full bg-emerald-300 text-xs font-bold text-slate-950">{step.number}</span>
+                <span>{step.label}</span>
+                <span class="sr-only">: {step.description}</span>
               </button>
             {:else}
-              <button class="flex h-full w-full gap-3 rounded-2xl border border-white/10 bg-white/5 p-4 text-left outline-none transition hover:border-emerald-300/30 hover:bg-emerald-300/8 focus-visible:ring-2 focus-visible:ring-emerald-300/50" type="button" aria-controls={step.panelId} onclick={() => goToStep(step.id)}>
-                <span class="grid size-10 shrink-0 place-items-center rounded-xl bg-white/10 text-sm font-bold text-slate-100">{step.number}</span>
-                <span>
-                  <span class="block font-semibold text-white">{step.label}</span>
-                  <span class="mt-1 block text-sm leading-6 text-slate-300">{step.description}</span>
-                </span>
+              <button class="inline-flex min-h-11 items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-2 text-left text-sm font-semibold text-slate-100 outline-none transition hover:border-emerald-300/30 hover:bg-emerald-300/8 focus-visible:ring-2 focus-visible:ring-emerald-300/60" type="button" aria-controls={step.panelId} onclick={() => goToStep(step.id)}>
+                <span class="grid size-7 shrink-0 place-items-center rounded-full bg-white/10 text-xs font-bold text-slate-100">{step.number}</span>
+                <span>{step.label}</span>
+                <span class="sr-only">: {step.description}</span>
               </button>
             {/if}
           </li>
