@@ -1,9 +1,20 @@
+import {
+	LIVE_SESSION_DEFAULT_TTL_SECONDS,
+	LIVE_SESSION_MAX_TTL_SECONDS,
+	LIVE_SESSION_MIN_TTL_SECONDS,
+} from "../domain/liveSessionLifecycle";
+
 export const getLiveTtlSeconds = () => {
 	const raw = process.env.KUDOS_LIVE_TTL_SECONDS;
-	const parsed = raw ? Number.parseInt(raw, 10) : 21_600;
+	const parsed = raw
+		? Number.parseInt(raw, 10)
+		: LIVE_SESSION_DEFAULT_TTL_SECONDS;
 	return Number.isFinite(parsed)
-		? Math.min(Math.max(parsed, 60), 86_400)
-		: 21_600;
+		? Math.min(
+				Math.max(parsed, LIVE_SESSION_MIN_TTL_SECONDS),
+				LIVE_SESSION_MAX_TTL_SECONDS,
+			)
+		: LIVE_SESSION_DEFAULT_TTL_SECONDS;
 };
 
 export const getRedisRestEnv = () => {

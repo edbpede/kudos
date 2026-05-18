@@ -17,6 +17,20 @@ interface Props {
 	teacherToken?: string;
 }
 
+interface CachedLiveSession {
+	displayState?: DisplayState;
+	displayUrl?: string;
+	expiresAt?: string;
+}
+
+interface LiveApiResult {
+	ok?: boolean;
+	displayState?: DisplayState;
+	purged?: boolean;
+	code?: string;
+	message?: string;
+}
+
 let { mode, sessionId = "", teacherToken = "" }: Props = $props();
 
 let session: ClassroomSession | null = null;
@@ -31,6 +45,10 @@ const totalStars = (state: DisplayState) =>
 const active = (state: DisplayState | null) => state?.status === "active";
 const statusLabel = (state: DisplayState | null) =>
 	state ? state.status.toUpperCase() : "WAITING";
+const cleanupLiveMetadata = () => {
+	window.localStorage.removeItem(liveStorageKey());
+	displayUrl = "";
+};
 
 const saveLocal = (next: ClassroomSession) => {
 	session = next;
@@ -54,7 +72,20 @@ const loadLocal = () => {
 
 const loadLive = () => {
 	const raw = window.localStorage.getItem(liveStorageKey());
-	const record = raw ? JSON.parse(raw) : null;
+	let record: CachedLiveSession | null = null;
+	try {
+		record = raw ? (JSON.parse(raw) as CachedLiveSession) : null;
+	} catch {
+		cleanupLiveMetadata();
+		message = "Live session metadata was invalid and has been cleaned up.";
+		return;
+	}
+	if (record?.expiresAt && Date.parse(record.expiresAt) <= Date.now()) {
+		cleanupLiveMetadata();
+		displayState = null;
+		message = "Live session metadata expired and has been cleaned up.";
+		return;
+	}
 	displayState = record?.displayState ?? null;
 	displayUrl = record?.displayUrl ?? "";
 	message = displayState
@@ -71,7 +102,7 @@ const updateLiveStorage = (body: { displayState?: DisplayState }) => {
 	if (!body.displayState) return;
 	displayState = body.displayState;
 	const raw = window.localStorage.getItem(liveStorageKey());
-	const record = raw ? JSON.parse(raw) : {};
+	const record = raw ? (JSON.parse(raw) as CachedLiveSession) : {};
 	window.localStorage.setItem(
 		liveStorageKey(),
 		JSON.stringify({ ...record, displayState }),
@@ -89,9 +120,16 @@ const callLive = async (path: string, body: unknown = {}) => {
 			},
 			body: JSON.stringify(body),
 		});
-		const result = await response.json();
-		if (!response.ok || !result.ok)
+		const result = (await response.json()) as LiveApiResult;
+		if (!response.ok || !result.ok) {
+			if (
+				result.code === "EXPIRED" ||
+				result.code === "NOT_FOUND" ||
+				result.code === "PURGED"
+			)
+				cleanupLiveMetadata();
 			throw new Error(result.message ?? "Live update failed.");
+		}
 		updateLiveStorage(result);
 		message = "Live session updated.";
 		return result;
@@ -141,7 +179,12 @@ const reset = () => {
 const end = () => {
 	if (!confirm("End this classroom session?")) return;
 	if (mode === "local" && session) saveLocal(endSession(session));
-	else void callLive("end");
+	else
+		void callLive("end").then((result) => {
+			if (!result?.ok) return;
+			cleanupLiveMetadata();
+			message = "Live session ended and cleaned up.";
+		});
 };
 
 const purge = () => {
@@ -151,8 +194,10 @@ const purge = () => {
 		)
 	)
 		return;
-	void callLive("end?purge=1").then(() => {
-		window.localStorage.removeItem(liveStorageKey());
+	void callLive("end?purge=1").then((result) => {
+		if (!result?.ok) return;
+		cleanupLiveMetadata();
+		displayState = null;
 		message = "Live session purged.";
 	});
 };

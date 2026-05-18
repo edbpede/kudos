@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { createDefaultTemplate } from "../../src/lib/domain/defaults";
 import { getMemoryRelayForTests } from "../../src/lib/server/relay";
 import { GET as displayGet } from "../../src/pages/api/session/[sessionId]/display";
@@ -23,9 +23,51 @@ const totalFor = (
 	displayState: { students: { id: string; total: number }[] },
 	studentId: string,
 ) => displayState.students.find((student) => student.id === studentId)?.total;
+const originalLiveTtl = process.env.KUDOS_LIVE_TTL_SECONDS;
 
 describe("session endpoints", () => {
-	beforeEach(() => getMemoryRelayForTests().clear());
+	beforeEach(() => {
+		getMemoryRelayForTests().clear();
+		delete process.env.KUDOS_LIVE_TTL_SECONDS;
+	});
+
+	afterEach(() => {
+		if (originalLiveTtl === undefined)
+			delete process.env.KUDOS_LIVE_TTL_SECONDS;
+		else process.env.KUDOS_LIVE_TTL_SECONDS = originalLiveTtl;
+	});
+
+	test("create defaults live sessions to a 12 hour auto-destroy TTL", async () => {
+		const createResponse = await createPost(
+			context(
+				jsonRequest("http://localhost/api/session/create", {
+					template: createDefaultTemplate(),
+				}),
+				"http://localhost/api/session/create",
+			),
+		);
+		expect(createResponse.status).toBe(201);
+		const created = await createResponse.json();
+		const secondsUntilExpiry = Math.round(
+			(Date.parse(created.expiresAt) - Date.now()) / 1000,
+		);
+		expect(secondsUntilExpiry).toBeGreaterThan(43_190);
+		expect(secondsUntilExpiry).toBeLessThanOrEqual(43_200);
+		expect(created.displayState.expiresAt).toBe(created.expiresAt);
+	});
+
+	test("create rejects TTLs beyond the 12 hour destruction window", async () => {
+		const createResponse = await createPost(
+			context(
+				jsonRequest("http://localhost/api/session/create", {
+					template: createDefaultTemplate(),
+					ttlSeconds: 43_201,
+				}),
+				"http://localhost/api/session/create",
+			),
+		);
+		expect(createResponse.status).toBe(400);
+	});
 
 	test("create/display/event flow and display-token mutation rejection", async () => {
 		const template = createDefaultTemplate();
@@ -185,6 +227,41 @@ describe("session endpoints", () => {
 			),
 		);
 		expect(purge.status).toBe(200);
+		const displayResponse = await displayGet(
+			context(new Request(created.displayUrl), created.displayUrl, {
+				sessionId: created.sessionId,
+			}),
+		);
+		expect(displayResponse.status).toBe(404);
+		const body = await displayResponse.json();
+		expect(body.displayState.students).toHaveLength(0);
+	});
+
+	test("ending a live session cleans up the server record", async () => {
+		const createResponse = await createPost(
+			context(
+				jsonRequest("http://localhost/api/session/create", {
+					template: createDefaultTemplate(),
+				}),
+				"http://localhost/api/session/create",
+			),
+		);
+		const created = await createResponse.json();
+		const ended = await endPost(
+			context(
+				jsonRequest(
+					`http://localhost/api/session/${created.sessionId}/end`,
+					{},
+					{ authorization: `Bearer ${created.teacherToken}` },
+				),
+				`http://localhost/api/session/${created.sessionId}/end`,
+				{ sessionId: created.sessionId },
+			),
+		);
+		expect(ended.status).toBe(200);
+		const endedBody = await ended.json();
+		expect(endedBody.displayState.status).toBe("ended");
+
 		const displayResponse = await displayGet(
 			context(new Request(created.displayUrl), created.displayUrl, {
 				sessionId: created.sessionId,

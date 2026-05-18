@@ -97,7 +97,9 @@ export class RedisRestRelay implements LiveRelay {
 	async end(sessionId: string, teacherToken: string) {
 		const record = await this.authorize(sessionId, teacherToken);
 		record.session = endSession(record.session);
-		return this.saveAndDisplay(record);
+		record.updatedAt = record.session.updatedAt;
+		await this.command(["DEL", this.key(sessionId)]);
+		return toDisplayState(record);
 	}
 
 	async purge(sessionId: string, teacherToken: string) {

@@ -95,7 +95,7 @@ export class MemoryRelay implements LiveRelay {
 		const record = this.authorize(sessionId, teacherToken);
 		record.session = endSession(record.session);
 		record.updatedAt = record.session.updatedAt;
-		this.records.set(sessionId, record);
+		this.records.delete(sessionId);
 		return toDisplayState(record);
 	}
 

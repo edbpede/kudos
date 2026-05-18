@@ -85,6 +85,28 @@ describe("RedisRestRelay", () => {
 		expect(commands.at(-1)).toEqual(["DEL", `kudos:live:${created.sessionId}`]);
 	});
 
+	test("ending returns ended state and deletes the record", async () => {
+		const relay = new RedisRestRelay({
+			url: "https://redis.example",
+			token: "test",
+		});
+		const created = await relay.create(
+			createSessionFromTemplate(createDefaultTemplate(), "live"),
+			3600,
+		);
+		const ended = await relay.end(created.sessionId, created.teacherToken);
+		expect(ended.status).toBe("ended");
+		expect(commands.at(-1)).toEqual(["DEL", `kudos:live:${created.sessionId}`]);
+		let rejected: unknown;
+		try {
+			await relay.readDisplay(created.sessionId, created.displayToken);
+		} catch (error) {
+			rejected = error;
+		}
+		expect(rejected).toBeInstanceOf(Error);
+		expect((rejected as Error).message).toContain("no longer available");
+	});
+
 	test("expired records are deleted and rejected", async () => {
 		const relay = new RedisRestRelay({
 			url: "https://redis.example",

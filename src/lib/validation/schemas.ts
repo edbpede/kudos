@@ -1,4 +1,8 @@
 import { z } from "zod";
+import {
+	LIVE_SESSION_MAX_TTL_SECONDS,
+	LIVE_SESSION_MIN_TTL_SECONDS,
+} from "../domain/liveSessionLifecycle";
 import { TEMPLATE_SCHEMA_VERSION } from "../domain/types";
 
 const trimmed = z.string().trim();
@@ -71,7 +75,12 @@ export const starEventInputSchema = z.object({
 
 export const createLiveSessionSchema = z.object({
 	template: classTemplateSchema,
-	ttlSeconds: z.number().int().min(60).max(86_400).optional(),
+	ttlSeconds: z
+		.number()
+		.int()
+		.min(LIVE_SESSION_MIN_TTL_SECONDS)
+		.max(LIVE_SESSION_MAX_TTL_SECONDS)
+		.optional(),
 });
 
 export const settingsUpdateSchema = z.object({

@@ -16,7 +16,7 @@ bun run test
 
 - Class templates are stored locally in the teacher browser by default.
 - Exported JSON is versioned template data only; it does not include live teacher secrets or runtime tokens.
-- Live sessions use temporary relay state with TTL and manual purge.
+- Live sessions use temporary relay state with a 12-hour maximum TTL and manual purge.
 - Display URLs use a read-only display token. Mutating endpoints require a separate teacher token.
 
 ## Live relay environment
@@ -26,10 +26,11 @@ Production live mode expects a Vercel-compatible Redis/Upstash REST provider:
 ```bash
 KV_REST_API_URL="https://..."
 KV_REST_API_TOKEN="..."
-KUDOS_LIVE_TTL_SECONDS="21600"
+KUDOS_LIVE_TTL_SECONDS="43200"
 ```
 
 When these variables are absent, development and tests use an in-memory relay. That fallback is not durable across serverless invocations and is intentionally documented as local-only.
+Live TTL overrides are clamped to a maximum of 12 hours so stale live-session records self-destruct.
 
 ## Architecture freeze for live mode
 
