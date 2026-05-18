@@ -1,30 +1,25 @@
-<section class="k-card p-5 sm:p-6" aria-labelledby="privacy-heading">
-  <div class="grid gap-5 lg:grid-cols-[1.1fr_2fr] lg:items-center">
+<section class="k-card p-4 sm:p-5" aria-labelledby="privacy-heading">
+  <div class="grid gap-4 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,2fr)] lg:items-center">
     <div>
-      <p class="k-eyebrow">Privacy</p>
-      <h2 id="privacy-heading" class="mt-2 text-3xl font-bold tracking-tight text-white sm:text-4xl">
-        Private by default, ready for the board.
-      </h2>
-      <p class="mt-3 text-base leading-7 text-slate-300">
-        Build and run a classroom rewards display without making student data a permanent cloud record.
+      <p class="k-eyebrow">Privacy reassurance</p>
+      <h2 id="privacy-heading" class="mt-1 text-xl font-bold text-white">Private by default</h2>
+      <p class="mt-2 text-sm leading-6 text-slate-300">
+        Helpful safeguards stay visible without getting in the way of setup.
       </p>
     </div>
-    <div class="grid gap-3 md:grid-cols-3">
-      <article class="k-panel p-4">
-        <span class="k-pill">01 Browser</span>
-        <h3 class="mt-4 font-semibold text-emerald-50">Templates stay local</h3>
-        <p class="mt-2 text-sm leading-6 text-slate-300">Class templates are saved in this teacher browser unless you choose to export them.</p>
-      </article>
-      <article class="k-panel p-4">
-        <span class="k-pill">02 Temporary</span>
-        <h3 class="mt-4 font-semibold text-emerald-50">Live sessions expire</h3>
-        <p class="mt-2 text-sm leading-6 text-slate-300">Live mode sends only the state needed by the display and is designed for short classroom use.</p>
-      </article>
-      <article class="k-panel p-4">
-        <span class="k-pill">03 Read-only</span>
-        <h3 class="mt-4 font-semibold text-emerald-50">Display links cannot write</h3>
-        <p class="mt-2 text-sm leading-6 text-slate-300">Teacher tokens never appear in display payloads or exported class JSON.</p>
-      </article>
-    </div>
+    <ul class="grid gap-2 text-sm leading-6 text-slate-200 md:grid-cols-3">
+      <li class="rounded-2xl border border-white/10 bg-white/5 p-3">
+        <strong class="block font-semibold text-emerald-100">Templates stay local</strong>
+        <span class="text-slate-300">Class templates stay in this teacher browser unless you export them.</span>
+      </li>
+      <li class="rounded-2xl border border-white/10 bg-white/5 p-3">
+        <strong class="block font-semibold text-emerald-100">Live sessions are temporary</strong>
+        <span class="text-slate-300">Live mode sends only display state for short classroom use.</span>
+      </li>
+      <li class="rounded-2xl border border-white/10 bg-white/5 p-3">
+        <strong class="block font-semibold text-emerald-100">Display links are read-only</strong>
+        <span class="text-slate-300">Teacher tokens stay out of display payloads and exported JSON.</span>
+      </li>
+    </ul>
   </div>
 </section>

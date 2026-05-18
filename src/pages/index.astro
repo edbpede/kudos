@@ -7,8 +7,32 @@ import AppLayout from "../layouts/AppLayout.astro";
 <AppLayout title="Kudos setup">
   <main id="main-content" class="k-page">
     <div class="grid gap-6">
-      <PrivacyNotice />
+      <section class="k-card p-5 sm:p-6" aria-labelledby="landing-heading">
+        <div class="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+          <div class="max-w-3xl">
+            <div class="flex items-center gap-3">
+              <span class="grid size-12 place-items-center rounded-2xl border border-emerald-300/25 bg-emerald-300/10 text-emerald-100 shadow-lg shadow-emerald-950/20">
+                <svg aria-hidden="true" focusable="false" class="size-7" viewBox="0 0 32 32" fill="none">
+                  <path d="M16 3.5l3.65 7.39 8.16 1.19-5.91 5.76 1.4 8.13L16 22.14l-7.3 3.83 1.4-8.13-5.91-5.76 8.16-1.19L16 3.5z" fill="currentColor" opacity=".95" />
+                  <path d="M12.1 16.1l2.35 2.35 5.8-6.15" stroke="#062016" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+              </span>
+              <p class="k-eyebrow">Kudos</p>
+            </div>
+            <h1 id="landing-heading" class="mt-4 text-3xl font-bold tracking-tight text-white sm:text-5xl">
+              Build a classroom rewards board in minutes.
+            </h1>
+            <p class="mt-3 max-w-2xl text-base leading-7 text-slate-300">
+              Add students, choose goals and rewards, then open a local or live display for your classroom.
+            </p>
+          </div>
+          <div class="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm leading-6 text-slate-200 lg:max-w-xs">
+            Start with the setup below. Your board is ready as soon as the roster and rewards fit today’s class.
+          </div>
+        </div>
+      </section>
       <SetupWorkspace client:load />
+      <PrivacyNotice />
     </div>
   </main>
 </AppLayout>
