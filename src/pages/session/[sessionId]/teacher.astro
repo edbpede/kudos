@@ -7,5 +7,7 @@ const teacherToken = Astro.url.searchParams.get("token") ?? "";
 ---
 
 <AppLayout title="Kudos live teacher controls">
-  <TeacherControlPanel mode="live" sessionId={sessionId} teacherToken={teacherToken} client:load />
+  <main id="main-content">
+    <TeacherControlPanel mode="live" sessionId={sessionId} teacherToken={teacherToken} client:load />
+  </main>
 </AppLayout>

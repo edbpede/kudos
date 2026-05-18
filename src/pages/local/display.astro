@@ -4,5 +4,7 @@ import AppLayout from "../../layouts/AppLayout.astro";
 ---
 
 <AppLayout title="Kudos local display">
-  <DisplayBoard mode="local" client:load />
+  <main id="main-content">
+    <DisplayBoard mode="local" client:load />
+  </main>
 </AppLayout>

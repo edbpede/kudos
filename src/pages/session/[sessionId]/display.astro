@@ -7,5 +7,7 @@ const displayToken = Astro.url.searchParams.get("token") ?? "";
 ---
 
 <AppLayout title="Kudos live display">
-  <DisplayBoard mode="live" sessionId={sessionId} displayToken={displayToken} client:load />
+  <main id="main-content">
+    <DisplayBoard mode="live" sessionId={sessionId} displayToken={displayToken} client:load />
+  </main>
 </AppLayout>

@@ -19,13 +19,18 @@ interface Props {
 
 let { mode, sessionId = "", teacherToken = "" }: Props = $props();
 
-let session = $state<ClassroomSession | null>(null);
+let session: ClassroomSession | null = null;
 let displayState = $state<DisplayState | null>(null);
 let message = $state("Loading session…");
 let displayUrl = $state("");
 let busy = $state(false);
 
 const liveStorageKey = () => `kudos.live.${sessionId}`;
+const totalStars = (state: DisplayState) =>
+	state.students.reduce((sum, student) => sum + student.total, 0);
+const active = (state: DisplayState | null) => state?.status === "active";
+const statusLabel = (state: DisplayState | null) =>
+	state ? state.status.toUpperCase() : "WAITING";
 
 const saveLocal = (next: ClassroomSession) => {
 	session = next;
@@ -40,8 +45,9 @@ const loadLocal = () => {
 		message = "No local session found. Return to setup to start one.";
 		return;
 	}
-	session = JSON.parse(raw) as ClassroomSession;
-	displayState = deriveDisplayState(session);
+	const next = JSON.parse(raw) as ClassroomSession;
+	session = next;
+	displayState = deriveDisplayState(next);
 	displayUrl = `${window.location.origin}/local/display`;
 	message = "Local teacher controls are ready.";
 };
@@ -150,46 +156,95 @@ const purge = () => {
 		message = "Live session purged.";
 	});
 };
+
+const copyDisplayUrl = () => {
+	if (!displayUrl) return;
+	void navigator.clipboard?.writeText(displayUrl)?.then(
+		() => {
+			message = "Display link copied.";
+		},
+		() => {
+			message = "Display link is ready below.";
+		},
+	);
+};
 </script>
 
-<section class="mx-auto max-w-7xl p-4 sm:p-6">
-  <div class="k-card p-5">
-    <div class="flex flex-wrap items-start justify-between gap-4">
-      <div>
-        <p class="text-sm font-semibold uppercase tracking-wide text-amber-700">{mode === "live" ? "Live teacher" : "Local teacher"}</p>
-        <h1 class="mt-1 text-3xl font-black text-slate-950">{displayState?.className ?? "Kudos session"}</h1>
-        <p class="mt-2 text-slate-700" aria-live="polite">{message}</p>
+<section class="k-page">
+  <div class="k-card overflow-hidden">
+    <div class="relative border-b border-white/10 p-5 sm:p-6">
+      <div class="absolute -left-20 -top-24 h-64 w-64 rounded-full bg-emerald-300/15 blur-3xl"></div>
+      <div class="relative grid gap-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
+        <div>
+          <p class="k-eyebrow">{mode === "live" ? "Live teacher console" : "Local teacher console"}</p>
+          <h1 class="mt-2 text-4xl font-black tracking-tight text-white sm:text-5xl">{displayState?.className ?? "Kudos session"}</h1>
+          <p class="mt-3 max-w-3xl text-base leading-7 text-slate-300" aria-live="polite">{message}</p>
+        </div>
+        <div class="grid gap-2 sm:grid-cols-2 lg:w-72 lg:grid-cols-1">
+          <a class="k-button-soft" href="/">Setup</a>
+          {#if displayUrl}<a class="k-button-primary" href={displayUrl} target="_blank" rel="noreferrer">Open display</a>{/if}
+        </div>
       </div>
-      <div class="flex flex-wrap gap-2">
-        <a class="k-button-soft" href="/">Setup</a>
-        {#if displayUrl}<a class="k-button-soft" href={displayUrl} target="_blank" rel="noreferrer">Open display</a>{/if}
-        <button class="k-button-soft" type="button" disabled={busy} onclick={undo}>Undo</button>
-        <button class="k-button-soft" type="button" disabled={busy} onclick={reset}>Reset</button>
-        <button class="k-button-soft" type="button" disabled={busy} onclick={end}>End</button>
-        {#if mode === "live"}<button class="k-button-soft" type="button" disabled={busy} onclick={purge}>Purge live</button>{/if}
-      </div>
+
+      {#if displayState}
+        <div class="relative mt-6 grid gap-3 sm:grid-cols-3">
+          <div class="k-stat"><p class="k-eyebrow">Status</p><p class="mt-1 text-2xl font-black">{statusLabel(displayState)}</p></div>
+          <div class="k-stat"><p class="k-eyebrow">Students</p><p class="mt-1 text-2xl font-black">{displayState.students.length}</p></div>
+          <div class="k-stat"><p class="k-eyebrow">Total stars</p><p class="mt-1 text-2xl font-black">⭐ {totalStars(displayState)}</p></div>
+        </div>
+      {/if}
+    </div>
+
+    <div class="grid gap-6 p-5 sm:p-6 lg:grid-cols-[20rem_minmax(0,1fr)]">
+      <aside class="grid content-start gap-3">
+        <section class="k-panel p-4">
+          <p class="k-eyebrow">Operations</p>
+          <div class="mt-4 grid gap-2">
+            <button class="k-button-soft" type="button" disabled={busy || !displayState} onclick={undo}>Undo last star</button>
+            <button class="k-button-soft" type="button" disabled={busy || !displayState || mode === "live"} onclick={reset}>Reset local stars</button>
+            <button class="k-button-danger" type="button" disabled={busy || !displayState || !active(displayState)} onclick={end}>End session</button>
+            {#if mode === "live"}<button class="k-button-danger" type="button" disabled={busy || !displayState} onclick={purge}>Purge live session</button>{/if}
+          </div>
+        </section>
+
+        <section class="k-panel p-4">
+          <p class="k-eyebrow">Display link</p>
+          {#if displayUrl}
+            <p class="mt-3 break-all rounded-2xl border border-cyan-300/20 bg-cyan-300/8 p-3 text-sm leading-6 text-cyan-100">{displayUrl}</p>
+            <button class="k-button-soft mt-3 w-full" type="button" onclick={copyDisplayUrl}>Copy link</button>
+          {:else}
+            <p class="mt-3 text-sm leading-6 text-slate-300">Start or restore a session to reveal the read-only display link.</p>
+          {/if}
+        </section>
+      </aside>
+
+      {#if displayState}
+        <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {#each displayState.students as student}
+            <article class="k-panel-soft p-4" aria-label={`${student.label} has ${student.total} stars`}>
+              <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                  <h2 class="truncate text-2xl font-black text-white">{student.label}</h2>
+                  {#if student.group}<p class="mt-1 text-sm text-slate-300">{student.group}</p>{/if}
+                </div>
+                <div class="k-star-orb rounded-2xl bg-emerald-300 px-3 py-2 text-2xl font-black text-slate-950">⭐ {student.total}</div>
+              </div>
+              <div class="mt-5 grid grid-cols-2 gap-2">
+                <button class="k-button-primary min-h-16 text-lg" type="button" disabled={busy || !active(displayState)} aria-label={`Add star for ${student.label}`} onclick={() => add(student.id)}>+ Star</button>
+                <button class="k-button-soft min-h-16 text-lg" type="button" disabled={busy || !active(displayState) || student.total <= 0} aria-label={`Remove star from ${student.label}`} onclick={() => remove(student.id)}>− Star</button>
+              </div>
+            </article>
+          {/each}
+        </div>
+      {:else}
+        <div class="k-panel flex min-h-96 items-center justify-center p-8 text-center text-slate-300">
+          <div>
+            <p class="text-5xl" aria-hidden="true">✦</p>
+            <h2 class="mt-4 text-2xl font-black text-white">No session state is available</h2>
+            <p class="mt-2">Return to setup to start a local session, or reopen the live teacher link from this browser.</p>
+          </div>
+        </div>
+      {/if}
     </div>
   </div>
-
-  {#if displayState}
-    <div class="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-      {#each displayState.students as student}
-        <article class="k-card p-4" aria-label={`${student.label} has ${student.total} stars`}>
-          <div class="flex items-start justify-between gap-3">
-            <div>
-              <h2 class="text-xl font-black text-slate-950">{student.label}</h2>
-              {#if student.group}<p class="text-sm text-slate-500">{student.group}</p>{/if}
-            </div>
-            <div class="rounded-2xl bg-amber-100 px-3 py-1 text-2xl font-black text-amber-900">⭐ {student.total}</div>
-          </div>
-          <div class="mt-4 grid grid-cols-2 gap-2">
-            <button class="k-button-primary text-lg" type="button" disabled={busy || displayState.status !== "active"} aria-label={`Add star for ${student.label}`} onclick={() => add(student.id)}>+ Star</button>
-            <button class="k-button-soft text-lg" type="button" disabled={busy || displayState.status !== "active" || student.total <= 0} aria-label={`Remove star from ${student.label}`} onclick={() => remove(student.id)}>− Star</button>
-          </div>
-        </article>
-      {/each}
-    </div>
-  {:else}
-    <div class="k-card mt-6 p-8 text-center text-slate-700">No session state is available.</div>
-  {/if}
 </section>

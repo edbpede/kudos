@@ -15,6 +15,16 @@ let displayState = $state<DisplayState | null>(null);
 let message = $state("Connecting to display state…");
 let timer: ReturnType<typeof setInterval> | undefined;
 
+const totalStars = (state: DisplayState) =>
+	state.students.reduce((sum, student) => sum + student.total, 0);
+const topTotal = (state: DisplayState) =>
+	Math.max(0, ...state.students.map((student) => student.total));
+const gridMin = (state: DisplayState) => {
+	if (state.students.length > 45) return "7rem";
+	if (state.students.length > 35) return "8.5rem";
+	return "12rem";
+};
+
 const loadLocal = () => {
 	const raw = window.localStorage.getItem(ACTIVE_SESSION_KEY);
 	if (!raw) {
@@ -60,42 +70,62 @@ onMount(() => {
 });
 </script>
 
-<section class="min-h-screen p-4 sm:p-6" class:motion-safe={!displayState?.preferences.reducedMotion}>
-  <div class="mx-auto max-w-7xl">
-    <header class="k-card p-5 text-center">
-      <p class="text-sm font-semibold uppercase tracking-wide text-amber-700">Kudos board</p>
-      <h1 class="mt-1 text-4xl font-black text-slate-950 sm:text-6xl">{displayState?.className ?? "Classroom Kudos"}</h1>
-      <p class="mt-2 text-slate-700" aria-live="polite">{message}</p>
+<section class="min-h-screen px-3 py-4 sm:px-6 sm:py-6" class:motion-safe={!displayState?.preferences.reducedMotion}>
+  <div class="mx-auto max-w-[100rem]">
+    <header class="k-card relative overflow-hidden p-5 text-center sm:p-7">
+      <div class="absolute left-1/2 top-0 h-32 w-2/3 -translate-x-1/2 rounded-full bg-emerald-300/15 blur-3xl"></div>
+      <div class="relative">
+        <p class="k-eyebrow">Kudos aurora board</p>
+        <h1 class="mt-2 text-5xl font-black tracking-tight text-white sm:text-7xl lg:text-8xl">{displayState?.className ?? "Classroom Kudos"}</h1>
+        <p class="mt-3 text-lg leading-7 text-slate-300" aria-live="polite">{message}</p>
+      </div>
+      {#if displayState}
+        <div class="relative mt-6 grid gap-3 sm:grid-cols-3">
+          <div class="k-stat"><p class="k-eyebrow">Status</p><p class="mt-1 text-3xl font-black">{displayState.status.toUpperCase()}</p></div>
+          <div class="k-stat"><p class="k-eyebrow">Students</p><p class="mt-1 text-3xl font-black">{displayState.students.length}</p></div>
+          <div class="k-stat"><p class="k-eyebrow">Total stars</p><p class="mt-1 text-3xl font-black">⭐ {totalStars(displayState)}</p></div>
+        </div>
+      {/if}
     </header>
 
     {#if displayState?.status === "expired" || displayState?.status === "purged"}
       <div class="k-card mt-6 p-10 text-center">
-        <h2 class="text-3xl font-black">This display link has expired</h2>
-        <p class="mt-3 text-slate-700">Ask the teacher to start a new live session. No roster data is shown after expiry.</p>
+        <p class="text-6xl" aria-hidden="true">☾</p>
+        <h2 class="mt-4 text-4xl font-black text-white">This display link has expired</h2>
+        <p class="mx-auto mt-3 max-w-2xl text-lg leading-8 text-slate-300">Ask the teacher to start a new live session. No roster data is shown after expiry or purge.</p>
       </div>
     {:else if displayState}
-      <div class="mt-6 grid gap-4" style={`grid-template-columns: repeat(auto-fit, minmax(${displayState.students.length > 35 ? "8rem" : "11rem"}, 1fr));`}>
+      <div class="mt-6 grid gap-3 sm:gap-4" style={`grid-template-columns: repeat(auto-fit, minmax(${gridMin(displayState)}, 1fr));`}>
         {#each displayState.students as student (student.id)}
-          <article class="k-card overflow-hidden p-4 text-center" aria-label={`${student.label}: ${student.total} stars`}>
-            <h2 class="truncate text-2xl font-black text-slate-950">{student.label}</h2>
-            <div class="mt-3 rounded-3xl bg-amber-100 py-4 text-5xl font-black text-amber-900" class:animate-pulse={!displayState.preferences.reducedMotion && student.lastPositiveAt === displayState.updatedAt}>⭐ {student.total}</div>
+          <article class="k-panel-soft overflow-hidden p-3 text-center sm:p-4" aria-label={`${student.label}: ${student.total} stars`}>
+            <h2 class="truncate text-2xl font-black text-white sm:text-3xl">{student.label}</h2>
+            <div class="k-star-orb mt-3 rounded-[1.4rem] border border-emerald-100/20 bg-emerald-300 px-2 py-4 text-5xl font-black text-slate-950 sm:text-6xl" class:k-celebrate={!displayState.preferences.reducedMotion && student.lastPositiveAt === displayState.updatedAt}>
+              <span aria-hidden="true">⭐</span> {student.total}
+            </div>
+            {#if student.total === topTotal(displayState) && student.total > 0}
+              <p class="mt-3 rounded-full bg-cyan-300/12 px-3 py-1 text-xs font-black uppercase tracking-[0.18em] text-cyan-100">Leading glow</p>
+            {/if}
           </article>
         {/each}
       </div>
 
       <div class="mt-6 grid gap-4 lg:grid-cols-3">
         {#if displayState.rules.length}
-          <section class="k-card p-5"><h2 class="font-black">Positive rules</h2><ul class="mt-2 list-disc pl-5 text-slate-700">{#each displayState.rules as rule}<li>{rule.label}</li>{/each}</ul></section>
+          <section class="k-card p-5"><p class="k-eyebrow">Positive rules</p><ul class="mt-3 grid gap-2 text-lg leading-8 text-slate-200">{#each displayState.rules as rule}<li class="rounded-2xl border border-white/10 bg-white/6 px-4 py-3">+{rule.stars} · {rule.label}</li>{/each}</ul></section>
         {/if}
         {#if displayState.goals.length}
-          <section class="k-card p-5"><h2 class="font-black">Today’s focus</h2><ul class="mt-2 list-disc pl-5 text-slate-700">{#each displayState.goals as goal}<li>{goal.title}</li>{/each}</ul></section>
+          <section class="k-card p-5"><p class="k-eyebrow">Today’s focus</p><ul class="mt-3 grid gap-2 text-lg leading-8 text-slate-200">{#each displayState.goals as goal}<li class="rounded-2xl border border-white/10 bg-white/6 px-4 py-3">{goal.title}</li>{/each}</ul></section>
         {/if}
         {#if displayState.rewards.length}
-          <section class="k-card p-5"><h2 class="font-black">Class rewards</h2><ul class="mt-2 list-disc pl-5 text-slate-700">{#each displayState.rewards as reward}<li>{reward.title}</li>{/each}</ul></section>
+          <section class="k-card p-5"><p class="k-eyebrow">Class rewards</p><ul class="mt-3 grid gap-2 text-lg leading-8 text-slate-200">{#each displayState.rewards as reward}<li class="rounded-2xl border border-white/10 bg-white/6 px-4 py-3">{reward.title}</li>{/each}</ul></section>
         {/if}
       </div>
     {:else}
-      <div class="k-card mt-6 p-10 text-center text-slate-700">Waiting for session state…</div>
+      <div class="k-card mt-6 p-10 text-center text-slate-300">
+        <p class="text-6xl" aria-hidden="true">✦</p>
+        <h2 class="mt-4 text-4xl font-black text-white">Waiting for session state…</h2>
+        <p class="mx-auto mt-3 max-w-2xl text-lg leading-8">The board will light up as soon as a teacher starts or reconnects a session.</p>
+      </div>
     {/if}
   </div>
 </section>
