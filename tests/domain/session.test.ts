@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { createDefaultTemplate } from "../../src/lib/domain/defaults";
 import {
+	alphabetizeStudents,
 	applyStarEvent,
 	createSessionFromTemplate,
 	deriveDisplayState,
@@ -9,11 +10,80 @@ import {
 	resetSession,
 	undoLastEvent,
 } from "../../src/lib/domain/session";
+import type { Student } from "../../src/lib/domain/types";
 
 const ids = ["a", "b", "c", "d", "e", "f", "g", "h"];
 const nextId = () => ids.shift() ?? "z";
 
+const studentNamed = (
+	displayName: string,
+	order: number,
+	id = displayName.toLowerCase().replace(/\s+/g, "-"),
+): Student => ({
+	id: `student-${id}`,
+	displayName,
+	order,
+});
+
+const orderedNames = (students: Pick<Student, "displayName">[]) =>
+	students.map((student) => student.displayName);
+
 describe("session domain", () => {
+	test("alphabetizes students by display name with order and id tie-breakers", () => {
+		const students = [
+			studentNamed("Student 10", 0, "ten"),
+			studentNamed("bailey", 0, "bailey-lower"),
+			studentNamed("Alex", 3, "alex-late"),
+			studentNamed("alex", 1, "alex-early"),
+			studentNamed("Student 2", 0, "two"),
+			studentNamed("Bailey", 0, "bailey-upper"),
+		];
+
+		expect(orderedNames(alphabetizeStudents(students))).toEqual([
+			"alex",
+			"Alex",
+			"bailey",
+			"Bailey",
+			"Student 2",
+			"Student 10",
+		]);
+	});
+
+	test("creates sessions with alphabetized students even when order conflicts", () => {
+		const template = createDefaultTemplate();
+		template.students = [
+			studentNamed("Zoey", 0, "zoey"),
+			studentNamed("Alex", 9, "alex"),
+			studentNamed("Mina", 1, "mina"),
+		];
+
+		const session = createSessionFromTemplate(template);
+
+		expect(orderedNames(session.students)).toEqual(["Alex", "Mina", "Zoey"]);
+	});
+
+	test("derives display state with alphabetized students regardless of session order", () => {
+		const template = createDefaultTemplate();
+		template.students = [
+			studentNamed("Student 10", 0, "ten"),
+			studentNamed("casey", 0, "casey-lower"),
+			studentNamed("Student 2", 1, "two"),
+			studentNamed("Bailey", 9, "bailey"),
+		];
+		const session = {
+			...createSessionFromTemplate(template),
+			students: [...template.students].reverse(),
+		};
+
+		const display = deriveDisplayState(session);
+
+		expect(display.students.map((student) => student.label)).toEqual([
+			"Bailey",
+			"casey",
+			"Student 2",
+			"Student 10",
+		]);
+	});
 	test("applies add/remove events and derives totals", () => {
 		const template = createDefaultTemplate("2026-01-01T00:00:00.000Z", nextId);
 		const studentId = template.students[0].id;

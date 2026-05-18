@@ -8,6 +8,11 @@ import {
 } from "../../src/lib/domain/session";
 import { MemoryRelay } from "../../src/lib/relay/memoryRelay";
 
+const totalFor = (
+	display: { students: { id: string; total: number }[] },
+	studentId: string,
+) => display.students.find((student) => student.id === studentId)?.total;
+
 describe("kudos smoke flows", () => {
 	test("local setup to teacher/display add remove undo reset shape", () => {
 		const template = createDefaultTemplate();
@@ -17,7 +22,7 @@ describe("kudos smoke flows", () => {
 		session = applyStarEvent(session, { studentId, delta: -1 });
 		session = undoLastEvent(session);
 		const display = deriveDisplayState(session);
-		expect(display.students[0].total).toBe(1);
+		expect(totalFor(display, studentId)).toBe(1);
 		expect(display.rules.length).toBeGreaterThan(0);
 	});
 
@@ -29,16 +34,19 @@ describe("kudos smoke flows", () => {
 		);
 		const studentId = created.displayState.students[0].id;
 		expect(
-			(await relay.readDisplay(created.sessionId, created.displayToken))
-				.students[0].total,
+			totalFor(
+				await relay.readDisplay(created.sessionId, created.displayToken),
+				studentId,
+			),
 		).toBe(0);
 		expect(
-			(
+			totalFor(
 				await relay.applyEvent(created.sessionId, created.teacherToken, {
 					studentId,
 					delta: 1,
-				})
-			).students[0].total,
+				}),
+				studentId,
+			),
 		).toBe(1);
 		await relay.purge(created.sessionId, created.teacherToken);
 		await expect(

@@ -39,68 +39,28 @@ body {
 	margin: 0;
 	background:
 		radial-gradient(
-			circle at 14% 12%,
-			color-mix(in oklch, var(--primary) 26%, transparent) 0,
+			circle at 18% 0%,
+			color-mix(in oklch, var(--primary) 18%, transparent) 0,
 			transparent 24rem
 		),
-		radial-gradient(
-			circle at 88% 4%,
-			color-mix(in oklch, var(--accent) 22%, transparent) 0,
-			transparent 28rem
-		),
-		linear-gradient(140deg, #07111d 0%, #0c1726 42%, #07111d 100%);
+		linear-gradient(145deg, #07111d 0%, #0d1826 48%, #07111d 100%);
 	color: var(--foreground);
 }
 
-body::before,
-body::after {
+body::before {
 	position: fixed;
 	inset: 0;
-	z-index: -2;
+	z-index: -1;
 	pointer-events: none;
 	content: "";
-}
-
-body::before {
-	background:
-		linear-gradient(
-			112deg,
-			transparent 8%,
-			rgba(66, 211, 146, 0.14) 22%,
-			transparent 36%
-		),
-		linear-gradient(
-			72deg,
-			transparent 35%,
-			rgba(66, 153, 225, 0.16) 50%,
-			transparent 67%
-		),
-		linear-gradient(
-			128deg,
-			transparent 42%,
-			rgba(217, 70, 239, 0.09) 58%,
-			transparent 76%
-		);
-	filter: blur(18px) saturate(130%);
-	transform: translate3d(0, 0, 0);
-	animation: aurora-drift 18s ease-in-out infinite alternate;
-}
-
-body::after {
-	z-index: -1;
-	background-image:
-		linear-gradient(rgba(255, 255, 255, 0.028) 1px, transparent 1px),
-		linear-gradient(90deg, rgba(255, 255, 255, 0.022) 1px, transparent 1px),
-		radial-gradient(
-			circle at 50% 0%,
-			rgba(255, 255, 255, 0.12),
-			transparent 34rem
-		);
-	background-size:
-		72px 72px,
-		72px 72px,
-		100% 100%;
-	mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.78), transparent 82%);
+	background: linear-gradient(
+		115deg,
+		transparent 12%,
+		rgba(66, 211, 146, 0.08) 28%,
+		transparent 48%
+	);
+	filter: blur(10px);
+	opacity: 0.78;
 }
 
 a {
@@ -139,9 +99,7 @@ a {
 }
 
 .k-star-orb {
-	box-shadow:
-		0 0 24px rgba(43, 255, 169, 0.28),
-		inset 0 1px 0 rgba(255, 255, 255, 0.24);
+	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
 }
 
 .k-subtle-scrollbar {
@@ -161,25 +119,14 @@ a {
 	background-clip: content-box;
 }
 
-@keyframes aurora-drift {
-	from {
-		transform: translate3d(-1.5rem, -0.5rem, 0) scale(1);
-		opacity: 0.72;
-	}
-	to {
-		transform: translate3d(1rem, 1.5rem, 0) scale(1.06);
-		opacity: 0.96;
-	}
-}
-
 @keyframes star-pop {
 	0% {
-		transform: scale(0.94);
+		transform: scale(0.96);
 		filter: brightness(1);
 	}
 	45% {
-		transform: scale(1.08);
-		filter: brightness(1.4);
+		transform: scale(1.04);
+		filter: brightness(1.18);
 	}
 	100% {
 		transform: scale(1);
@@ -188,7 +135,7 @@ a {
 }
 
 .motion-safe .k-celebrate {
-	animation: star-pop 700ms cubic-bezier(0.2, 0.9, 0.2, 1);
+	animation: star-pop 520ms cubic-bezier(0.2, 0.9, 0.2, 1);
 }
 
 @media (prefers-reduced-motion: reduce) {

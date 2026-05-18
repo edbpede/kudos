@@ -4,6 +4,10 @@ import { createSessionFromTemplate } from "../../src/lib/domain/session";
 import { RedisRestRelay } from "../../src/lib/relay/redisRelay";
 
 const originalFetch = globalThis.fetch;
+const totalFor = (
+	display: { students: { id: string; total: number }[] },
+	studentId: string,
+) => display.students.find((student) => student.id === studentId)?.total;
 
 describe("RedisRestRelay", () => {
 	const store = new Map<string, string>();
@@ -61,7 +65,7 @@ describe("RedisRestRelay", () => {
 			created.teacherToken,
 			{ studentId, delta: 1 },
 		);
-		expect(display.students[0].total).toBe(1);
+		expect(totalFor(display, studentId)).toBe(1);
 		const lastSet = commands.filter((command) => command[0] === "SET").at(-1);
 		expect(lastSet?.[3]).toBe("EX");
 		expect(Number(lastSet?.[4])).toBeGreaterThan(0);

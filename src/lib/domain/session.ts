@@ -22,10 +22,18 @@ export class DomainError extends Error {
 
 const clone = <T>(value: T): T => structuredClone(value);
 
-const sortedStudents = (students: Student[]) =>
-	[...students].sort(
-		(a, b) => a.order - b.order || a.displayName.localeCompare(b.displayName),
-	);
+const displayNameCollator = new Intl.Collator(undefined, {
+	numeric: true,
+	sensitivity: "base",
+});
+
+export const compareStudentsByDisplayName = (a: Student, b: Student) =>
+	displayNameCollator.compare(a.displayName, b.displayName) ||
+	a.order - b.order ||
+	a.id.localeCompare(b.id);
+
+export const alphabetizeStudents = (students: Student[]) =>
+	[...students].sort(compareStudentsByDisplayName);
 
 export const createSessionFromTemplate = (
 	template: ClassTemplate,
@@ -37,7 +45,7 @@ export const createSessionFromTemplate = (
 	templateId: template.id,
 	mode,
 	className: template.className,
-	students: sortedStudents(clone(template.students)),
+	students: alphabetizeStudents(clone(template.students)),
 	rules: clone(template.rules),
 	goals: clone(template.goals),
 	rewards: clone(template.rewards),
@@ -174,23 +182,23 @@ export const deriveDisplayState = (
 	expiresAt?: string,
 ): DisplayState => {
 	const totals = deriveTotals(session);
-	const students: StudentDisplayState[] = sortedStudents(session.students).map(
-		(student) => {
-			const lastPositiveAt = [...session.events]
-				.reverse()
-				.find(
-					(event) => event.studentId === student.id && event.delta > 0,
-				)?.createdAt;
-			return {
-				id: student.id,
-				label: displayLabelFor(student, session.preferences.displayNameMode),
-				group: student.group,
-				total: totals[student.id] ?? 0,
-				order: student.order,
-				lastPositiveAt,
-			};
-		},
-	);
+	const students: StudentDisplayState[] = alphabetizeStudents(
+		session.students,
+	).map((student) => {
+		const lastPositiveAt = [...session.events]
+			.reverse()
+			.find(
+				(event) => event.studentId === student.id && event.delta > 0,
+			)?.createdAt;
+		return {
+			id: student.id,
+			label: displayLabelFor(student, session.preferences.displayNameMode),
+			group: student.group,
+			total: totals[student.id] ?? 0,
+			order: student.order,
+			lastPositiveAt,
+		};
+	});
 
 	return {
 		sessionId: session.id,

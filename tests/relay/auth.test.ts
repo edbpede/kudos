@@ -3,6 +3,11 @@ import { createDefaultTemplate } from "../../src/lib/domain/defaults";
 import { createSessionFromTemplate } from "../../src/lib/domain/session";
 import { MemoryRelay } from "../../src/lib/relay/memoryRelay";
 
+const totalFor = (
+	display: { students: { id: string; total: number }[] },
+	studentId: string,
+) => display.students.find((student) => student.id === studentId)?.total;
+
 describe("live relay", () => {
 	test("separates teacher and display capabilities", async () => {
 		const relay = new MemoryRelay();
@@ -21,7 +26,7 @@ describe("live relay", () => {
 			created.teacherToken,
 			{ studentId, delta: 1 },
 		);
-		expect(display.students[0].total).toBe(1);
+		expect(totalFor(display, studentId)).toBe(1);
 		expect(JSON.stringify(display)).not.toContain(created.teacherToken);
 	});
 
