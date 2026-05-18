@@ -5,7 +5,10 @@ import {
 	defaultPreferences,
 } from "../../lib/domain/defaults";
 import { createPrefixedId } from "../../lib/domain/ids";
-import { createSessionFromTemplate } from "../../lib/domain/session";
+import {
+	alphabetizeStudents,
+	createSessionFromTemplate,
+} from "../../lib/domain/session";
 import type {
 	ClassTemplate,
 	Goal,
@@ -30,6 +33,7 @@ let importText = $state("");
 let exportText = $state("");
 let liveDisplayUrl = $state("");
 let busy = $state(false);
+let alphabetizedStudents = $derived(alphabetizeStudents(current.students));
 
 onMount(() => {
 	templates = loadTemplates();
@@ -227,16 +231,15 @@ const startLiveSession = async () => {
 
 <div class="grid gap-6 xl:grid-cols-[minmax(0,1fr)_24rem]">
   <section class="k-card overflow-hidden" aria-labelledby="setup-heading">
-    <div class="relative border-b border-white/10 p-5 sm:p-6">
-      <div class="absolute -right-20 -top-20 h-56 w-56 rounded-full bg-cyan-300/15 blur-3xl"></div>
-      <div class="relative flex flex-wrap items-start justify-between gap-4">
+    <div class="border-b border-white/10 p-5 sm:p-6">
+      <div class="flex flex-wrap items-start justify-between gap-4">
         <div class="max-w-3xl">
-          <p class="k-eyebrow">Teacher cockpit</p>
-          <h1 id="setup-heading" class="mt-2 text-4xl font-black tracking-tight text-white sm:text-5xl">
+          <p class="k-eyebrow">Teacher setup</p>
+          <h1 id="setup-heading" class="mt-2 text-3xl font-bold tracking-tight text-white sm:text-4xl">
             Build today’s <span class="k-aurora-wordmark text-emerald-200">Kudos</span> board
           </h1>
           <p class="mt-3 text-base leading-7 text-slate-300">
-            Tune the roster, rituals, goals, and display preferences before launching a local board or temporary live session.
+            Set the roster, goals, rewards, and display preferences before starting a local board or temporary live session.
           </p>
         </div>
         <div class="grid min-w-56 gap-2 sm:grid-cols-2 xl:grid-cols-1">
@@ -245,18 +248,18 @@ const startLiveSession = async () => {
         </div>
       </div>
 
-      <div class="relative mt-6 grid gap-3 sm:grid-cols-3">
+      <div class="mt-6 grid gap-3 sm:grid-cols-3">
         <div class="k-stat">
-          <p class="text-xs font-black uppercase tracking-[0.18em] text-emerald-200/80">Roster</p>
-          <p class="mt-1 text-3xl font-black">{current.students.length}</p>
+          <p class="k-eyebrow">Roster</p>
+          <p class="mt-1 text-2xl font-bold">{current.students.length}</p>
         </div>
         <div class="k-stat">
-          <p class="text-xs font-black uppercase tracking-[0.18em] text-emerald-200/80">Rules</p>
-          <p class="mt-1 text-3xl font-black">{current.rules.length}</p>
+          <p class="k-eyebrow">Rules</p>
+          <p class="mt-1 text-2xl font-bold">{current.rules.length}</p>
         </div>
         <div class="k-stat">
-          <p class="text-xs font-black uppercase tracking-[0.18em] text-emerald-200/80">Saved</p>
-          <p class="mt-1 truncate text-3xl font-black">{templates.length}</p>
+          <p class="k-eyebrow">Saved</p>
+          <p class="mt-1 truncate text-2xl font-bold">{templates.length}</p>
         </div>
       </div>
     </div>
@@ -273,7 +276,7 @@ const startLiveSession = async () => {
         </label>
         <label class="grid gap-2">
           <span class="k-label">Class name</span>
-          <input class="k-input text-lg font-black" value={current.className} oninput={(event) => persist({ ...current, className: event.currentTarget.value })} />
+          <input class="k-input text-lg font-semibold" value={current.className} oninput={(event) => persist({ ...current, className: event.currentTarget.value })} />
         </label>
       </section>
 
@@ -281,15 +284,15 @@ const startLiveSession = async () => {
         <section class="k-panel-soft p-4 sm:p-5" aria-labelledby="students-heading">
           <div class="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <p class="k-eyebrow">Crew manifest</p>
-              <h2 id="students-heading" class="mt-1 text-2xl font-black text-white">Roster</h2>
+              <p class="k-eyebrow">Students</p>
+              <h2 id="students-heading" class="mt-1 text-2xl font-bold text-white">Roster</h2>
             </div>
             <button class="k-button-primary" type="button" onclick={addStudent}>Add student</button>
           </div>
           <div class="k-subtle-scrollbar mt-4 grid max-h-[34rem] gap-3 overflow-auto pr-1">
-            {#each current.students as student, index}
-              <div class="grid gap-2 rounded-2xl border border-white/10 bg-slate-950/45 p-3 md:grid-cols-[3rem_1fr_1fr_auto] md:items-center">
-                <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-300/15 font-black text-emerald-100">{index + 1}</div>
+            {#each alphabetizedStudents as student, index (student.id)}
+              <div class="grid gap-2 rounded-xl border border-white/10 bg-slate-950/35 p-3 md:grid-cols-[3rem_1fr_1fr_auto] md:items-center">
+                <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-300/12 font-semibold text-emerald-100">{index + 1}</div>
                 <input aria-label="Student display name" class="k-input" value={student.displayName} oninput={(event) => updateStudent(student.id, { displayName: event.currentTarget.value })} />
                 <input aria-label="Student alias or group" class="k-input" placeholder="Optional alias/group" value={student.alias ?? ""} oninput={(event) => updateStudent(student.id, { alias: event.currentTarget.value })} />
                 <button class="k-button-soft" type="button" onclick={() => removeStudent(student.id)}>Remove</button>
@@ -301,14 +304,14 @@ const startLiveSession = async () => {
         <section class="k-panel p-4 sm:p-5" aria-labelledby="rules-heading">
           <div class="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <p class="k-eyebrow">Reward triggers</p>
-              <h2 id="rules-heading" class="mt-1 text-2xl font-black text-white">Positive rules</h2>
+              <p class="k-eyebrow">Rules</p>
+              <h2 id="rules-heading" class="mt-1 text-2xl font-bold text-white">Positive rules</h2>
             </div>
             <button class="k-button-soft" type="button" onclick={addRule}>Add rule</button>
           </div>
           <div class="mt-4 grid gap-3">
             {#each current.rules as rule}
-              <div class="grid gap-2 rounded-2xl border border-white/10 bg-white/6 p-3 md:grid-cols-[1fr_6rem_auto]">
+              <div class="grid gap-2 rounded-xl border border-white/10 bg-white/5 p-3 md:grid-cols-[1fr_6rem_auto]">
                 <input aria-label="Rule label" class="k-input" value={rule.label} oninput={(event) => updateRule(rule.id, { label: event.currentTarget.value })} />
                 <input aria-label="Rule stars" class="k-input" type="number" min="1" value={rule.stars} oninput={(event) => updateRule(rule.id, { stars: Number(event.currentTarget.value) || 1 })} />
                 <button class="k-button-soft" type="button" onclick={() => removeRule(rule.id)}>Remove</button>
@@ -320,14 +323,14 @@ const startLiveSession = async () => {
         <section class="k-panel p-4 sm:p-5" aria-labelledby="goals-heading">
           <div class="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <p class="k-eyebrow">North star</p>
-              <h2 id="goals-heading" class="mt-1 text-2xl font-black text-white">Goals</h2>
+              <p class="k-eyebrow">Goals</p>
+              <h2 id="goals-heading" class="mt-1 text-2xl font-bold text-white">Goals</h2>
             </div>
             <button class="k-button-soft" type="button" onclick={addGoal}>Add goal</button>
           </div>
           <div class="mt-4 grid gap-3">
             {#each current.goals as goal}
-              <div class="grid gap-2 rounded-2xl border border-white/10 bg-white/6 p-3 md:grid-cols-[1fr_7rem_auto]">
+              <div class="grid gap-2 rounded-xl border border-white/10 bg-white/5 p-3 md:grid-cols-[1fr_7rem_auto]">
                 <input aria-label="Goal title" class="k-input" value={goal.title} oninput={(event) => updateGoal(goal.id, { title: event.currentTarget.value })} />
                 <input aria-label="Goal target" class="k-input" type="number" min="1" value={goal.targetStars ?? ""} oninput={(event) => updateGoal(goal.id, { targetStars: Number(event.currentTarget.value) || undefined })} />
                 <button class="k-button-soft" type="button" onclick={() => removeGoal(goal.id)}>Remove</button>
@@ -339,14 +342,14 @@ const startLiveSession = async () => {
         <section class="k-panel p-4 sm:p-5" aria-labelledby="rewards-heading">
           <div class="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <p class="k-eyebrow">Celebrations</p>
-              <h2 id="rewards-heading" class="mt-1 text-2xl font-black text-white">Rewards</h2>
+              <p class="k-eyebrow">Rewards</p>
+              <h2 id="rewards-heading" class="mt-1 text-2xl font-bold text-white">Rewards</h2>
             </div>
             <button class="k-button-soft" type="button" onclick={addReward}>Add reward</button>
           </div>
           <div class="mt-4 grid gap-3">
             {#each current.rewards as reward}
-              <div class="grid gap-2 rounded-2xl border border-white/10 bg-white/6 p-3 md:grid-cols-[1fr_7rem_auto]">
+              <div class="grid gap-2 rounded-xl border border-white/10 bg-white/5 p-3 md:grid-cols-[1fr_7rem_auto]">
                 <input aria-label="Reward title" class="k-input" value={reward.title} oninput={(event) => updateReward(reward.id, { title: event.currentTarget.value })} />
                 <input aria-label="Reward cost" class="k-input" type="number" min="1" value={reward.costStars ?? ""} oninput={(event) => updateReward(reward.id, { costStars: Number(event.currentTarget.value) || undefined })} />
                 <button class="k-button-soft" type="button" onclick={() => removeReward(reward.id)}>Remove</button>
@@ -360,33 +363,33 @@ const startLiveSession = async () => {
 
   <aside class="grid content-start gap-4">
     <section class="k-card p-5" aria-live="polite">
-      <p class="k-eyebrow">Launch rail</p>
-      <h2 class="mt-1 text-2xl font-black text-white">Session actions</h2>
-      <p class="mt-3 rounded-2xl border border-emerald-300/15 bg-emerald-300/8 p-3 text-sm leading-6 text-emerald-50">{status}</p>
+      <p class="k-eyebrow">Session</p>
+      <h2 class="mt-1 text-2xl font-bold text-white">Session actions</h2>
+      <p class="mt-3 rounded-xl border border-emerald-300/15 bg-emerald-300/8 p-3 text-sm leading-6 text-emerald-50">{status}</p>
       <div class="mt-4 grid gap-2">
         <button class="k-button-primary text-base" type="button" onclick={startLocalSession}>Start local session</button>
         <button class="k-button-soft text-base" type="button" disabled={busy} onclick={startLiveSession}>{busy ? "Creating live link…" : "Start live session"}</button>
       </div>
       {#if liveDisplayUrl}
-        <a class="mt-3 block break-all rounded-2xl border border-cyan-300/20 bg-cyan-300/8 p-3 text-sm font-black text-cyan-100 underline" href={liveDisplayUrl}>Read-only display URL</a>
+        <a class="mt-3 block break-all rounded-2xl border border-cyan-300/20 bg-cyan-300/8 p-3 text-sm font-semibold text-cyan-100 underline" href={liveDisplayUrl}>Read-only display URL</a>
       {/if}
     </section>
 
     <section class="k-card p-5">
       <p class="k-eyebrow">Display behavior</p>
-      <h2 class="mt-1 text-2xl font-black text-white">Preferences</h2>
+      <h2 class="mt-1 text-2xl font-bold text-white">Preferences</h2>
       <div class="mt-4 grid gap-3 text-sm text-slate-200">
-        <label class="flex min-h-11 items-center gap-3 rounded-2xl border border-white/10 bg-white/6 px-3"><input type="checkbox" checked={current.preferences.showRules} onchange={(event) => persist({ ...current, preferences: { ...current.preferences, showRules: event.currentTarget.checked } })} /> Show rules</label>
-        <label class="flex min-h-11 items-center gap-3 rounded-2xl border border-white/10 bg-white/6 px-3"><input type="checkbox" checked={current.preferences.showGoals} onchange={(event) => persist({ ...current, preferences: { ...current.preferences, showGoals: event.currentTarget.checked } })} /> Show goals</label>
-        <label class="flex min-h-11 items-center gap-3 rounded-2xl border border-white/10 bg-white/6 px-3"><input type="checkbox" checked={current.preferences.showRewards} onchange={(event) => persist({ ...current, preferences: { ...current.preferences, showRewards: event.currentTarget.checked } })} /> Show rewards</label>
-        <label class="flex min-h-11 items-center gap-3 rounded-2xl border border-white/10 bg-white/6 px-3"><input type="checkbox" checked={current.preferences.reducedMotion} onchange={(event) => persist({ ...current, preferences: { ...current.preferences, reducedMotion: event.currentTarget.checked } })} /> Reduced motion</label>
+        <label class="flex min-h-11 items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-3"><input type="checkbox" checked={current.preferences.showRules} onchange={(event) => persist({ ...current, preferences: { ...current.preferences, showRules: event.currentTarget.checked } })} /> Show rules</label>
+        <label class="flex min-h-11 items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-3"><input type="checkbox" checked={current.preferences.showGoals} onchange={(event) => persist({ ...current, preferences: { ...current.preferences, showGoals: event.currentTarget.checked } })} /> Show goals</label>
+        <label class="flex min-h-11 items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-3"><input type="checkbox" checked={current.preferences.showRewards} onchange={(event) => persist({ ...current, preferences: { ...current.preferences, showRewards: event.currentTarget.checked } })} /> Show rewards</label>
+        <label class="flex min-h-11 items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-3"><input type="checkbox" checked={current.preferences.reducedMotion} onchange={(event) => persist({ ...current, preferences: { ...current.preferences, reducedMotion: event.currentTarget.checked } })} /> Reduced motion</label>
         <label class="grid gap-2"><span class="k-label">Display names</span><select class="k-input" value={current.preferences.displayNameMode} onchange={(event) => persist({ ...current, preferences: { ...defaultPreferences, ...current.preferences, displayNameMode: event.currentTarget.value as typeof current.preferences.displayNameMode } })}><option value="displayName">Display names</option><option value="alias">Aliases when available</option><option value="initials">Initials</option></select></label>
       </div>
     </section>
 
     <section class="k-card p-5">
       <p class="k-eyebrow">Portable template</p>
-      <h2 class="mt-1 text-2xl font-black text-white">Import / export</h2>
+      <h2 class="mt-1 text-2xl font-bold text-white">Import / export</h2>
       <p class="mt-2 text-sm leading-6 text-slate-300">Export includes class setup only—no teacher token, display token, or runtime session secrets.</p>
       <button class="k-button-soft mt-4" type="button" onclick={exportTemplate}>Refresh export JSON</button>
       <textarea aria-label="Exported class JSON" class="k-input k-subtle-scrollbar mt-3 min-h-36 font-mono text-xs" readonly value={exportText}></textarea>

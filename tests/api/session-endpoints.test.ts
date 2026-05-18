@@ -19,6 +19,10 @@ const jsonRequest = (url: string, body: unknown, headers: HeadersInit = {}) =>
 		headers: { "content-type": "application/json", ...headers },
 		body: JSON.stringify(body),
 	});
+const totalFor = (
+	displayState: { students: { id: string; total: number }[] },
+	studentId: string,
+) => displayState.students.find((student) => student.id === studentId)?.total;
 
 describe("session endpoints", () => {
 	beforeEach(() => getMemoryRelayForTests().clear());
@@ -71,7 +75,7 @@ describe("session endpoints", () => {
 		);
 		const acceptedBody = await accepted.json();
 		expect(accepted.status).toBe(200);
-		expect(acceptedBody.displayState.students[0].total).toBe(1);
+		expect(totalFor(acceptedBody.displayState, studentId)).toBe(1);
 	});
 
 	test("mutating endpoints reject missing invalid display-only and expired credentials", async () => {
