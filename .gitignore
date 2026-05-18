@@ -111,3 +111,7 @@ dist
 
 # TernJS port file
 .tern-port
+
+# Astro/Vercel generated output
+.astro/
+.vercel/

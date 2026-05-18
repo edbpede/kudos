@@ -1,0 +1,16 @@
+{
+	"formatter": {
+		"enabled": true
+	},
+	"linter": {
+		"rules": {
+			"complexity": {
+				"noImportantStyles": "off"
+			},
+			"correctness": {
+				"noUnusedImports": "off",
+				"noUnusedVariables": "off"
+			}
+		}
+	}
+}

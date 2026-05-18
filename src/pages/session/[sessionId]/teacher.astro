@@ -1,0 +1,11 @@
+---
+import TeacherControlPanel from "../../../components/session/TeacherControlPanel.svelte";
+import AppLayout from "../../../layouts/AppLayout.astro";
+
+const { sessionId } = Astro.params;
+const teacherToken = Astro.url.searchParams.get("token") ?? "";
+---
+
+<AppLayout title="Kudos live teacher controls">
+  <TeacherControlPanel mode="live" sessionId={sessionId} teacherToken={teacherToken} client:load />
+</AppLayout>

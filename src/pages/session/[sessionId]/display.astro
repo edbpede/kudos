@@ -1,0 +1,11 @@
+---
+import DisplayBoard from "../../../components/session/DisplayBoard.svelte";
+import AppLayout from "../../../layouts/AppLayout.astro";
+
+const { sessionId } = Astro.params;
+const displayToken = Astro.url.searchParams.get("token") ?? "";
+---
+
+<AppLayout title="Kudos live display">
+  <DisplayBoard mode="live" sessionId={sessionId} displayToken={displayToken} client:load />
+</AppLayout>
