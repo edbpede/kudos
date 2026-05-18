@@ -1,0 +1,14 @@
+---
+import PrivacyNotice from "../components/common/PrivacyNotice.astro";
+import SetupWorkspace from "../components/setup/SetupWorkspace.svelte";
+import AppLayout from "../layouts/AppLayout.astro";
+---
+
+<AppLayout title="Kudos setup">
+  <main class="mx-auto max-w-7xl p-4 sm:p-6">
+    <div class="grid gap-6">
+      <PrivacyNotice />
+      <SetupWorkspace client:load />
+    </div>
+  </main>
+</AppLayout>
