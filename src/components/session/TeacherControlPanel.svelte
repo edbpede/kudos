@@ -172,12 +172,12 @@ const copyDisplayUrl = () => {
 
 <section class="k-page">
   <div class="k-card overflow-hidden">
-    <div class="border-b border-white/10 p-5 sm:p-6">
+    <div class="border-b border-[var(--border-soft)] p-5 sm:p-6">
       <div class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
         <div>
           <p class="k-eyebrow">{mode === "live" ? "Live teacher controls" : "Local teacher controls"}</p>
-          <h1 class="mt-2 text-3xl font-bold tracking-tight text-white sm:text-4xl">{displayState?.className ?? "Kudos session"}</h1>
-          <p class="mt-3 max-w-3xl text-base leading-7 text-slate-300" aria-live="polite">{message}</p>
+          <h1 class="mt-2 text-3xl font-bold tracking-tight text-[var(--foreground)] sm:text-4xl">{displayState?.className ?? "Kudos session"}</h1>
+          <p class="mt-3 max-w-3xl text-base leading-7 text-[var(--text-soft)]" aria-live="polite">{message}</p>
         </div>
         <div class="grid gap-2 sm:grid-cols-2 lg:w-72 lg:grid-cols-1">
           <a class="k-button-soft" href="/">Setup</a>
@@ -209,10 +209,10 @@ const copyDisplayUrl = () => {
         <section class="k-panel p-4">
           <p class="k-eyebrow">Display link</p>
           {#if displayUrl}
-            <p class="mt-3 break-all rounded-xl border border-cyan-300/20 bg-cyan-300/8 p-3 text-sm leading-6 text-cyan-100">{displayUrl}</p>
+            <p class="mt-3 break-all rounded-xl border border-cyan-300/20 bg-cyan-300/8 p-3 text-sm leading-6 text-[var(--foreground)]">{displayUrl}</p>
             <button class="k-button-soft mt-3 w-full" type="button" onclick={copyDisplayUrl}>Copy link</button>
           {:else}
-            <p class="mt-3 text-sm leading-6 text-slate-300">Start or restore a session to reveal the read-only display link.</p>
+            <p class="mt-3 text-sm leading-6 text-[var(--text-soft)]">Start or restore a session to reveal the read-only display link.</p>
           {/if}
         </section>
       </aside>
@@ -223,8 +223,8 @@ const copyDisplayUrl = () => {
             <article class="k-panel-soft p-4" aria-label={`${student.label} has ${student.total} stars`}>
               <div class="flex items-start justify-between gap-3">
                 <div class="min-w-0">
-                  <h2 class="truncate text-2xl font-bold text-white">{student.label}</h2>
-                  {#if student.group}<p class="mt-1 text-sm text-slate-300">{student.group}</p>{/if}
+                  <h2 class="truncate text-2xl font-bold text-[var(--foreground)]">{student.label}</h2>
+                  {#if student.group}<p class="mt-1 text-sm text-[var(--text-soft)]">{student.group}</p>{/if}
                 </div>
                 <div class="k-star-orb rounded-xl bg-emerald-300 px-3 py-2 text-2xl font-bold text-slate-950">⭐ {student.total}</div>
               </div>
@@ -236,10 +236,10 @@ const copyDisplayUrl = () => {
           {/each}
         </div>
       {:else}
-        <div class="k-panel flex min-h-96 items-center justify-center p-8 text-center text-slate-300">
+        <div class="k-panel flex min-h-96 items-center justify-center p-8 text-center text-[var(--text-soft)]">
           <div>
             <p class="text-5xl" aria-hidden="true">✦</p>
-            <h2 class="mt-4 text-2xl font-bold text-white">No session state is available</h2>
+            <h2 class="mt-4 text-2xl font-bold text-[var(--foreground)]">No session state is available</h2>
             <p class="mt-2">Return to setup to start a local session, or reopen the live teacher link from this browser.</p>
           </div>
         </div>

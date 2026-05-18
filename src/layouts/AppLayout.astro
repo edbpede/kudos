@@ -7,22 +7,40 @@ interface Props {
 }
 
 const {
-	title = "Kudos classroom rewards",
-	description = "A privacy-first classroom reward board for teachers and displays.",
+	title = "Kudos klassebelønninger",
+	description = "En rolig, privat belønningstavle til lærere og klasseskærme.",
 } = Astro.props;
 ---
 
 <!doctype html>
-<html lang="en">
+<html lang="da" data-theme="light" data-lang="da">
   <head>
     <meta charset="UTF-8" />
     <meta name="description" content={description} />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#07111d" />
+    <meta name="theme-color" content="#fafafa" />
+    <script is:inline>
+      (() => {
+        const root = document.documentElement;
+        try {
+          const theme = localStorage.getItem("kudos.theme") === "dark" ? "dark" : "light";
+          const language = localStorage.getItem("kudos.language") === "en" ? "en" : "da";
+          root.dataset.theme = theme;
+          root.dataset.lang = language;
+          root.lang = language;
+          const meta = document.querySelector('meta[name="theme-color"]');
+          meta?.setAttribute("content", theme === "dark" ? "#07111d" : "#fafafa");
+        } catch {
+          root.dataset.theme = "light";
+          root.dataset.lang = "da";
+          root.lang = "da";
+        }
+      })();
+    </script>
     <title>{title}</title>
   </head>
   <body>
-    <a class="skip-link" href="#main-content">Skip to main content</a>
+    <a class="skip-link" href="#main-content">Gå til indhold</a>
     <slot />
   </body>
 </html>
