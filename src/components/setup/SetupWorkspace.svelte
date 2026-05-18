@@ -1,5 +1,5 @@
 <script lang="ts">
-import { onMount } from "svelte";
+import { onMount, tick } from "svelte";
 import {
 	createDefaultTemplate,
 	defaultPreferences,
@@ -26,6 +26,40 @@ import {
 	saveTemplates,
 } from "../../lib/persistence/localTemplateStore";
 
+type SetupStep = "class-roster" | "board-details" | "review-launch";
+
+type SetupStepMeta = {
+	id: SetupStep;
+	number: string;
+	label: string;
+	description: string;
+	panelId: string;
+};
+
+const setupSteps: SetupStepMeta[] = [
+	{
+		id: "class-roster",
+		number: "1",
+		label: "Class & roster",
+		description: "Choose a template, name the class, and add students.",
+		panelId: "setup-step-class-roster",
+	},
+	{
+		id: "board-details",
+		number: "2",
+		label: "Board details",
+		description: "Set rules, goals, rewards, and display preferences.",
+		panelId: "setup-step-board-details",
+	},
+	{
+		id: "review-launch",
+		number: "3",
+		label: "Review & launch",
+		description: "Review readiness, launch a session, or move a template.",
+		panelId: "setup-step-review-launch",
+	},
+];
+
 let templates = $state<ClassTemplate[]>([]);
 let current = $state<ClassTemplate>(createDefaultTemplate());
 let status = $state("Loading local templates…");
@@ -33,7 +67,25 @@ let importText = $state("");
 let exportText = $state("");
 let liveDisplayUrl = $state("");
 let busy = $state(false);
+let currentStep = $state<SetupStep>("class-roster");
 let alphabetizedStudents = $derived(alphabetizeStudents(current.students));
+let activeStepIndex = $derived(
+	Math.max(
+		0,
+		setupSteps.findIndex((step) => step.id === currentStep),
+	),
+);
+let activeStep = $derived(setupSteps[activeStepIndex] ?? setupSteps[0]);
+let canGoBack = $derived(activeStepIndex > 0);
+let canGoNext = $derived(activeStepIndex < setupSteps.length - 1);
+let displayNameModeLabel = $derived(
+	current.preferences.displayNameMode === "alias"
+		? "Aliases when available"
+		: current.preferences.displayNameMode === "initials"
+			? "Initials"
+			: "Display names",
+);
+let stepFocusTarget = $state<HTMLElement | null>(null);
 
 onMount(() => {
 	templates = loadTemplates();
@@ -41,6 +93,24 @@ onMount(() => {
 	exportText = serializeTemplate(current);
 	status = "Local templates are saved in this browser only.";
 });
+
+const focusStepPanel = async () => {
+	await tick();
+	stepFocusTarget?.focus();
+};
+
+const goToStep = (step: SetupStep) => {
+	currentStep = step;
+	void focusStepPanel();
+};
+
+const goToStepOffset = (offset: number) => {
+	const nextIndex = Math.min(
+		Math.max(activeStepIndex + offset, 0),
+		setupSteps.length - 1,
+	);
+	goToStep(setupSteps[nextIndex].id);
+};
 
 const touch = (template: ClassTemplate): ClassTemplate => ({
 	...template,
@@ -229,63 +299,99 @@ const startLiveSession = async () => {
 };
 </script>
 
-<div class="grid gap-6 xl:grid-cols-[minmax(0,1fr)_24rem]">
-  <section class="k-card overflow-hidden" aria-labelledby="setup-heading">
-    <div class="border-b border-white/10 p-5 sm:p-6">
-      <div class="flex flex-wrap items-start justify-between gap-4">
-        <div class="max-w-3xl">
-          <p class="k-eyebrow">Setup</p>
-          <h2 id="setup-heading" class="mt-2 text-3xl font-bold tracking-tight text-white sm:text-4xl">
-            Build your board
-          </h2>
-          <p class="mt-3 text-base leading-7 text-slate-300">
-            Add students, choose goals and rewards, then start a local or live display.
-          </p>
-        </div>
-        <div class="grid min-w-56 gap-2 sm:grid-cols-2 xl:grid-cols-1">
-          <button class="k-button-soft" type="button" onclick={newTemplate}>New class</button>
-          <button class="k-button-primary" type="button" onclick={startLocalSession}>Start local</button>
-        </div>
+<section class="k-card overflow-hidden" aria-labelledby="setup-heading">
+  <div class="border-b border-white/10 p-5 sm:p-6">
+    <div class="grid gap-5 xl:grid-cols-[minmax(0,1fr)_22rem] xl:items-start">
+      <div class="max-w-3xl">
+        <p class="k-eyebrow">Guided setup</p>
+        <h2 id="setup-heading" class="mt-2 text-3xl font-bold tracking-tight text-white sm:text-4xl">
+          Build your board in 3 steps
+        </h2>
+        <p class="mt-3 text-base leading-7 text-slate-300">
+          Start with the class roster, tune the board details, then review and launch a local or live display.
+        </p>
       </div>
 
-      <div class="mt-6 grid gap-3 sm:grid-cols-3">
-        <div class="k-stat">
-          <p class="k-eyebrow">Roster</p>
-          <p class="mt-1 text-2xl font-bold">{current.students.length}</p>
-        </div>
-        <div class="k-stat">
-          <p class="k-eyebrow">Rules</p>
-          <p class="mt-1 text-2xl font-bold">{current.rules.length}</p>
-        </div>
-        <div class="k-stat">
-          <p class="k-eyebrow">Saved</p>
-          <p class="mt-1 truncate text-2xl font-bold">{templates.length}</p>
-        </div>
+      <section class="rounded-2xl border border-emerald-300/15 bg-emerald-300/8 p-4" aria-label="Setup status" aria-live="polite">
+        <p class="k-eyebrow">Status</p>
+        <p class="mt-2 text-sm leading-6 text-emerald-50">{status}</p>
+      </section>
+    </div>
+
+    <div class="mt-6 grid gap-3 sm:grid-cols-3">
+      <div class="k-stat">
+        <p class="k-eyebrow">Roster</p>
+        <p class="mt-1 text-2xl font-bold">{current.students.length}</p>
+      </div>
+      <div class="k-stat">
+        <p class="k-eyebrow">Rules</p>
+        <p class="mt-1 text-2xl font-bold">{current.rules.length}</p>
+      </div>
+      <div class="k-stat">
+        <p class="k-eyebrow">Saved</p>
+        <p class="mt-1 truncate text-2xl font-bold">{templates.length}</p>
       </div>
     </div>
 
-    <div class="grid gap-6 p-5 sm:p-6">
-      <section class="grid gap-4 md:grid-cols-2" aria-label="Template identity">
-        <label class="grid gap-2">
-          <span class="k-label">Saved templates</span>
-          <select class="k-input" value={current.id} onchange={(event) => selectTemplate(event.currentTarget.value)}>
-            {#each templates as template}
-              <option value={template.id}>{template.className}</option>
-            {/each}
-          </select>
-        </label>
-        <label class="grid gap-2">
-          <span class="k-label">Class name</span>
-          <input class="k-input text-lg font-semibold" value={current.className} oninput={(event) => persist({ ...current, className: event.currentTarget.value })} />
-        </label>
-      </section>
+    <nav class="mt-6" aria-label="Setup steps">
+      <ol class="grid gap-3 lg:grid-cols-3">
+        {#each setupSteps as step}
+          <li>
+            {#if currentStep === step.id}
+              <button class="flex h-full w-full gap-3 rounded-2xl border border-emerald-300/35 bg-emerald-300/12 p-4 text-left shadow-lg shadow-emerald-950/20 outline-none ring-2 ring-emerald-300/35" type="button" aria-current="step" aria-controls={step.panelId} onclick={() => goToStep(step.id)}>
+                <span class="grid size-10 shrink-0 place-items-center rounded-xl bg-emerald-300 text-sm font-bold text-slate-950">{step.number}</span>
+                <span>
+                  <span class="block font-semibold text-white">{step.label}</span>
+                  <span class="mt-1 block text-sm leading-6 text-emerald-50/90">{step.description}</span>
+                </span>
+              </button>
+            {:else}
+              <button class="flex h-full w-full gap-3 rounded-2xl border border-white/10 bg-white/5 p-4 text-left outline-none transition hover:border-emerald-300/30 hover:bg-emerald-300/8 focus-visible:ring-2 focus-visible:ring-emerald-300/50" type="button" aria-controls={step.panelId} onclick={() => goToStep(step.id)}>
+                <span class="grid size-10 shrink-0 place-items-center rounded-xl bg-white/10 text-sm font-bold text-slate-100">{step.number}</span>
+                <span>
+                  <span class="block font-semibold text-white">{step.label}</span>
+                  <span class="mt-1 block text-sm leading-6 text-slate-300">{step.description}</span>
+                </span>
+              </button>
+            {/if}
+          </li>
+        {/each}
+      </ol>
+    </nav>
+  </div>
 
-      <div class="grid gap-5 2xl:grid-cols-2">
+  <div class="grid gap-6 p-5 sm:p-6">
+    {#if currentStep === "class-roster"}
+      <section bind:this={stepFocusTarget} id="setup-step-class-roster" class="grid gap-6 outline-none" aria-labelledby="setup-step-class-roster-heading" tabindex="-1">
+        <div class="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p class="k-eyebrow">Step 1 of 3</p>
+            <h3 id="setup-step-class-roster-heading" class="mt-1 text-2xl font-bold text-white">Class & roster</h3>
+            <p class="mt-2 max-w-2xl text-sm leading-6 text-slate-300">Select a saved template or start fresh, then make the student list fit today’s class.</p>
+          </div>
+          <button class="k-button-soft" type="button" onclick={newTemplate}>New class</button>
+        </div>
+
+        <section class="grid gap-4 md:grid-cols-2" aria-label="Template identity">
+          <label class="grid gap-2">
+            <span class="k-label">Saved templates</span>
+            <select class="k-input" value={current.id} onchange={(event) => selectTemplate(event.currentTarget.value)}>
+              {#each templates as template}
+                <option value={template.id}>{template.className}</option>
+              {/each}
+            </select>
+          </label>
+          <label class="grid gap-2">
+            <span class="k-label">Class name</span>
+            <input class="k-input text-lg font-semibold" value={current.className} oninput={(event) => persist({ ...current, className: event.currentTarget.value })} />
+          </label>
+        </section>
+
         <section class="k-panel-soft p-4 sm:p-5" aria-labelledby="students-heading">
           <div class="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p class="k-eyebrow">Students</p>
-              <h2 id="students-heading" class="mt-1 text-2xl font-bold text-white">Roster</h2>
+              <h4 id="students-heading" class="mt-1 text-2xl font-bold text-white">Roster</h4>
             </div>
             <button class="k-button-primary" type="button" onclick={addStudent}>Add student</button>
           </div>
@@ -300,101 +406,159 @@ const startLiveSession = async () => {
             {/each}
           </div>
         </section>
+      </section>
+    {:else if currentStep === "board-details"}
+      <section bind:this={stepFocusTarget} id="setup-step-board-details" class="grid gap-6 outline-none" aria-labelledby="setup-step-board-details-heading" tabindex="-1">
+        <div>
+          <p class="k-eyebrow">Step 2 of 3</p>
+          <h3 id="setup-step-board-details-heading" class="mt-1 text-2xl font-bold text-white">Board details</h3>
+          <p class="mt-2 max-w-2xl text-sm leading-6 text-slate-300">Choose what earns stars, what the class is working toward, and how the board should display.</p>
+        </div>
 
-        <section class="k-panel p-4 sm:p-5" aria-labelledby="rules-heading">
-          <div class="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <p class="k-eyebrow">Rules</p>
-              <h2 id="rules-heading" class="mt-1 text-2xl font-bold text-white">Positive rules</h2>
-            </div>
-            <button class="k-button-soft" type="button" onclick={addRule}>Add rule</button>
-          </div>
-          <div class="mt-4 grid gap-3">
-            {#each current.rules as rule}
-              <div class="grid gap-2 rounded-xl border border-white/10 bg-white/5 p-3 md:grid-cols-[1fr_6rem_auto]">
-                <input aria-label="Rule label" class="k-input" value={rule.label} oninput={(event) => updateRule(rule.id, { label: event.currentTarget.value })} />
-                <input aria-label="Rule stars" class="k-input" type="number" min="1" value={rule.stars} oninput={(event) => updateRule(rule.id, { stars: Number(event.currentTarget.value) || 1 })} />
-                <button class="k-button-soft" type="button" onclick={() => removeRule(rule.id)}>Remove</button>
+        <div class="grid gap-5 2xl:grid-cols-2">
+          <section class="k-panel p-4 sm:p-5" aria-labelledby="rules-heading">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p class="k-eyebrow">Rules</p>
+                <h4 id="rules-heading" class="mt-1 text-2xl font-bold text-white">Positive rules</h4>
               </div>
-            {/each}
-          </div>
-        </section>
-
-        <section class="k-panel p-4 sm:p-5" aria-labelledby="goals-heading">
-          <div class="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <p class="k-eyebrow">Goals</p>
-              <h2 id="goals-heading" class="mt-1 text-2xl font-bold text-white">Goals</h2>
+              <button class="k-button-soft" type="button" onclick={addRule}>Add rule</button>
             </div>
-            <button class="k-button-soft" type="button" onclick={addGoal}>Add goal</button>
-          </div>
-          <div class="mt-4 grid gap-3">
-            {#each current.goals as goal}
-              <div class="grid gap-2 rounded-xl border border-white/10 bg-white/5 p-3 md:grid-cols-[1fr_7rem_auto]">
-                <input aria-label="Goal title" class="k-input" value={goal.title} oninput={(event) => updateGoal(goal.id, { title: event.currentTarget.value })} />
-                <input aria-label="Goal target" class="k-input" type="number" min="1" value={goal.targetStars ?? ""} oninput={(event) => updateGoal(goal.id, { targetStars: Number(event.currentTarget.value) || undefined })} />
-                <button class="k-button-soft" type="button" onclick={() => removeGoal(goal.id)}>Remove</button>
-              </div>
-            {/each}
-          </div>
-        </section>
-
-        <section class="k-panel p-4 sm:p-5" aria-labelledby="rewards-heading">
-          <div class="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <p class="k-eyebrow">Rewards</p>
-              <h2 id="rewards-heading" class="mt-1 text-2xl font-bold text-white">Rewards</h2>
+            <div class="mt-4 grid gap-3">
+              {#each current.rules as rule}
+                <div class="grid gap-2 rounded-xl border border-white/10 bg-white/5 p-3 md:grid-cols-[1fr_6rem_auto]">
+                  <input aria-label="Rule label" class="k-input" value={rule.label} oninput={(event) => updateRule(rule.id, { label: event.currentTarget.value })} />
+                  <input aria-label="Rule stars" class="k-input" type="number" min="1" value={rule.stars} oninput={(event) => updateRule(rule.id, { stars: Number(event.currentTarget.value) || 1 })} />
+                  <button class="k-button-soft" type="button" onclick={() => removeRule(rule.id)}>Remove</button>
+                </div>
+              {/each}
             </div>
-            <button class="k-button-soft" type="button" onclick={addReward}>Add reward</button>
-          </div>
-          <div class="mt-4 grid gap-3">
-            {#each current.rewards as reward}
-              <div class="grid gap-2 rounded-xl border border-white/10 bg-white/5 p-3 md:grid-cols-[1fr_7rem_auto]">
-                <input aria-label="Reward title" class="k-input" value={reward.title} oninput={(event) => updateReward(reward.id, { title: event.currentTarget.value })} />
-                <input aria-label="Reward cost" class="k-input" type="number" min="1" value={reward.costStars ?? ""} oninput={(event) => updateReward(reward.id, { costStars: Number(event.currentTarget.value) || undefined })} />
-                <button class="k-button-soft" type="button" onclick={() => removeReward(reward.id)}>Remove</button>
-              </div>
-            {/each}
-          </div>
-        </section>
-      </div>
-    </div>
-  </section>
+          </section>
 
-  <aside class="grid content-start gap-4">
-    <section class="k-card p-5" aria-live="polite">
-      <p class="k-eyebrow">Session</p>
-      <h2 class="mt-1 text-2xl font-bold text-white">Session actions</h2>
-      <p class="mt-3 rounded-xl border border-emerald-300/15 bg-emerald-300/8 p-3 text-sm leading-6 text-emerald-50">{status}</p>
-      <div class="mt-4 grid gap-2">
-        <button class="k-button-primary text-base" type="button" onclick={startLocalSession}>Start local session</button>
-        <button class="k-button-soft text-base" type="button" disabled={busy} onclick={startLiveSession}>{busy ? "Creating live link…" : "Start live session"}</button>
-      </div>
-      {#if liveDisplayUrl}
-        <a class="mt-3 block break-all rounded-2xl border border-cyan-300/20 bg-cyan-300/8 p-3 text-sm font-semibold text-cyan-100 underline" href={liveDisplayUrl}>Read-only display URL</a>
+          <section class="k-panel p-4 sm:p-5" aria-labelledby="goals-heading">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p class="k-eyebrow">Goals</p>
+                <h4 id="goals-heading" class="mt-1 text-2xl font-bold text-white">Goals</h4>
+              </div>
+              <button class="k-button-soft" type="button" onclick={addGoal}>Add goal</button>
+            </div>
+            <div class="mt-4 grid gap-3">
+              {#each current.goals as goal}
+                <div class="grid gap-2 rounded-xl border border-white/10 bg-white/5 p-3 md:grid-cols-[1fr_7rem_auto]">
+                  <input aria-label="Goal title" class="k-input" value={goal.title} oninput={(event) => updateGoal(goal.id, { title: event.currentTarget.value })} />
+                  <input aria-label="Goal target" class="k-input" type="number" min="1" value={goal.targetStars ?? ""} oninput={(event) => updateGoal(goal.id, { targetStars: Number(event.currentTarget.value) || undefined })} />
+                  <button class="k-button-soft" type="button" onclick={() => removeGoal(goal.id)}>Remove</button>
+                </div>
+              {/each}
+            </div>
+          </section>
+
+          <section class="k-panel p-4 sm:p-5" aria-labelledby="rewards-heading">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p class="k-eyebrow">Rewards</p>
+                <h4 id="rewards-heading" class="mt-1 text-2xl font-bold text-white">Rewards</h4>
+              </div>
+              <button class="k-button-soft" type="button" onclick={addReward}>Add reward</button>
+            </div>
+            <div class="mt-4 grid gap-3">
+              {#each current.rewards as reward}
+                <div class="grid gap-2 rounded-xl border border-white/10 bg-white/5 p-3 md:grid-cols-[1fr_7rem_auto]">
+                  <input aria-label="Reward title" class="k-input" value={reward.title} oninput={(event) => updateReward(reward.id, { title: event.currentTarget.value })} />
+                  <input aria-label="Reward cost" class="k-input" type="number" min="1" value={reward.costStars ?? ""} oninput={(event) => updateReward(reward.id, { costStars: Number(event.currentTarget.value) || undefined })} />
+                  <button class="k-button-soft" type="button" onclick={() => removeReward(reward.id)}>Remove</button>
+                </div>
+              {/each}
+            </div>
+          </section>
+
+          <section class="k-panel p-4 sm:p-5" aria-labelledby="preferences-heading">
+            <div>
+              <p class="k-eyebrow">Display behavior</p>
+              <h4 id="preferences-heading" class="mt-1 text-2xl font-bold text-white">Preferences</h4>
+            </div>
+            <div class="mt-4 grid gap-3 text-sm text-slate-200">
+              <label class="flex min-h-11 items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-3"><input type="checkbox" checked={current.preferences.showRules} onchange={(event) => persist({ ...current, preferences: { ...current.preferences, showRules: event.currentTarget.checked } })} /> Show rules</label>
+              <label class="flex min-h-11 items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-3"><input type="checkbox" checked={current.preferences.showGoals} onchange={(event) => persist({ ...current, preferences: { ...current.preferences, showGoals: event.currentTarget.checked } })} /> Show goals</label>
+              <label class="flex min-h-11 items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-3"><input type="checkbox" checked={current.preferences.showRewards} onchange={(event) => persist({ ...current, preferences: { ...current.preferences, showRewards: event.currentTarget.checked } })} /> Show rewards</label>
+              <label class="flex min-h-11 items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-3"><input type="checkbox" checked={current.preferences.reducedMotion} onchange={(event) => persist({ ...current, preferences: { ...current.preferences, reducedMotion: event.currentTarget.checked } })} /> Reduced motion</label>
+              <label class="grid gap-2"><span class="k-label">Display names</span><select class="k-input" value={current.preferences.displayNameMode} onchange={(event) => persist({ ...current, preferences: { ...defaultPreferences, ...current.preferences, displayNameMode: event.currentTarget.value as typeof current.preferences.displayNameMode } })}><option value="displayName">Display names</option><option value="alias">Aliases when available</option><option value="initials">Initials</option></select></label>
+            </div>
+          </section>
+        </div>
+      </section>
+    {:else}
+      <section bind:this={stepFocusTarget} id="setup-step-review-launch" class="grid gap-6 outline-none" aria-labelledby="setup-step-review-launch-heading" tabindex="-1">
+        <div>
+          <p class="k-eyebrow">Step 3 of 3</p>
+          <h3 id="setup-step-review-launch-heading" class="mt-1 text-2xl font-bold text-white">Review & launch</h3>
+          <p class="mt-2 max-w-2xl text-sm leading-6 text-slate-300">Check the class setup, then launch a session or use import/export for a portable template.</p>
+        </div>
+
+        <div class="grid gap-5 xl:grid-cols-[minmax(0,1fr)_24rem]">
+          <section class="k-panel-soft p-4 sm:p-5" aria-labelledby="review-summary-heading">
+            <p class="k-eyebrow">Ready check</p>
+            <h4 id="review-summary-heading" class="mt-1 text-2xl font-bold text-white">{current.className}</h4>
+            <dl class="mt-4 grid gap-3 sm:grid-cols-2">
+              <div class="rounded-xl border border-white/10 bg-slate-950/35 p-3">
+                <dt class="k-eyebrow">Students</dt>
+                <dd class="mt-1 text-xl font-bold text-white">{current.students.length}</dd>
+              </div>
+              <div class="rounded-xl border border-white/10 bg-slate-950/35 p-3">
+                <dt class="k-eyebrow">Rules</dt>
+                <dd class="mt-1 text-xl font-bold text-white">{current.rules.length}</dd>
+              </div>
+              <div class="rounded-xl border border-white/10 bg-slate-950/35 p-3">
+                <dt class="k-eyebrow">Goals</dt>
+                <dd class="mt-1 text-xl font-bold text-white">{current.goals.length}</dd>
+              </div>
+              <div class="rounded-xl border border-white/10 bg-slate-950/35 p-3">
+                <dt class="k-eyebrow">Rewards</dt>
+                <dd class="mt-1 text-xl font-bold text-white">{current.rewards.length}</dd>
+              </div>
+            </dl>
+            <div class="mt-4 rounded-xl border border-white/10 bg-white/5 p-4 text-sm leading-6 text-slate-200">
+              <p><span class="font-semibold text-white">Display names:</span> {displayNameModeLabel}</p>
+              <p><span class="font-semibold text-white">Visible sections:</span> Rules {current.preferences.showRules ? "on" : "off"}, goals {current.preferences.showGoals ? "on" : "off"}, rewards {current.preferences.showRewards ? "on" : "off"}</p>
+              <p><span class="font-semibold text-white">Motion:</span> {current.preferences.reducedMotion ? "Reduced" : "Full"}</p>
+            </div>
+          </section>
+
+          <section class="k-panel p-4 sm:p-5" aria-labelledby="session-actions-heading">
+            <p class="k-eyebrow">Session</p>
+            <h4 id="session-actions-heading" class="mt-1 text-2xl font-bold text-white">Launch</h4>
+            <p class="mt-3 text-sm leading-6 text-slate-300">Local sessions stay on this device. Live sessions create a teacher URL and a read-only display link.</p>
+            <div class="mt-4 grid gap-2">
+              <button class="k-button-primary text-base" type="button" onclick={startLocalSession}>Start local session</button>
+              <button class="k-button-soft text-base" type="button" disabled={busy} onclick={startLiveSession}>{busy ? "Creating live link…" : "Start live session"}</button>
+            </div>
+            {#if liveDisplayUrl}
+              <a class="mt-3 block break-all rounded-2xl border border-cyan-300/20 bg-cyan-300/8 p-3 text-sm font-semibold text-cyan-100 underline" href={liveDisplayUrl}>Read-only display URL</a>
+            {/if}
+          </section>
+        </div>
+
+        <section class="k-panel p-4 sm:p-5" aria-labelledby="portable-template-heading">
+          <p class="k-eyebrow">Advanced portable template</p>
+          <h4 id="portable-template-heading" class="mt-1 text-2xl font-bold text-white">Import / export</h4>
+          <p class="mt-2 text-sm leading-6 text-slate-300">Export includes class setup only—no teacher token, display token, or runtime session secrets.</p>
+          <button class="k-button-soft mt-4" type="button" onclick={exportTemplate}>Refresh export JSON</button>
+          <textarea aria-label="Exported class JSON" class="k-input k-subtle-scrollbar mt-3 min-h-36 font-mono text-xs" readonly value={exportText}></textarea>
+          <textarea aria-label="Import class JSON" class="k-input k-subtle-scrollbar mt-3 min-h-28 font-mono text-xs" placeholder="Paste exported class JSON" bind:value={importText}></textarea>
+          <button class="k-button-primary mt-3 w-full" type="button" onclick={importTemplate}>Import JSON</button>
+        </section>
+      </section>
+    {/if}
+
+    <div class="flex flex-wrap items-center justify-between gap-3 border-t border-white/10 pt-5">
+      <button class="k-button-soft" type="button" disabled={!canGoBack} onclick={() => goToStepOffset(-1)}>Back</button>
+      <p class="text-sm font-semibold text-slate-300">Step {activeStep.number} of {setupSteps.length}: {activeStep.label}</p>
+      {#if canGoNext}
+        <button class="k-button-primary" type="button" onclick={() => goToStepOffset(1)}>Next</button>
+      {:else}
+        <button class="k-button-soft" type="button" onclick={() => goToStep("class-roster")}>Back to step 1</button>
       {/if}
-    </section>
-
-    <section class="k-card p-5">
-      <p class="k-eyebrow">Display behavior</p>
-      <h2 class="mt-1 text-2xl font-bold text-white">Preferences</h2>
-      <div class="mt-4 grid gap-3 text-sm text-slate-200">
-        <label class="flex min-h-11 items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-3"><input type="checkbox" checked={current.preferences.showRules} onchange={(event) => persist({ ...current, preferences: { ...current.preferences, showRules: event.currentTarget.checked } })} /> Show rules</label>
-        <label class="flex min-h-11 items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-3"><input type="checkbox" checked={current.preferences.showGoals} onchange={(event) => persist({ ...current, preferences: { ...current.preferences, showGoals: event.currentTarget.checked } })} /> Show goals</label>
-        <label class="flex min-h-11 items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-3"><input type="checkbox" checked={current.preferences.showRewards} onchange={(event) => persist({ ...current, preferences: { ...current.preferences, showRewards: event.currentTarget.checked } })} /> Show rewards</label>
-        <label class="flex min-h-11 items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-3"><input type="checkbox" checked={current.preferences.reducedMotion} onchange={(event) => persist({ ...current, preferences: { ...current.preferences, reducedMotion: event.currentTarget.checked } })} /> Reduced motion</label>
-        <label class="grid gap-2"><span class="k-label">Display names</span><select class="k-input" value={current.preferences.displayNameMode} onchange={(event) => persist({ ...current, preferences: { ...defaultPreferences, ...current.preferences, displayNameMode: event.currentTarget.value as typeof current.preferences.displayNameMode } })}><option value="displayName">Display names</option><option value="alias">Aliases when available</option><option value="initials">Initials</option></select></label>
-      </div>
-    </section>
-
-    <section class="k-card p-5">
-      <p class="k-eyebrow">Portable template</p>
-      <h2 class="mt-1 text-2xl font-bold text-white">Import / export</h2>
-      <p class="mt-2 text-sm leading-6 text-slate-300">Export includes class setup only—no teacher token, display token, or runtime session secrets.</p>
-      <button class="k-button-soft mt-4" type="button" onclick={exportTemplate}>Refresh export JSON</button>
-      <textarea aria-label="Exported class JSON" class="k-input k-subtle-scrollbar mt-3 min-h-36 font-mono text-xs" readonly value={exportText}></textarea>
-      <textarea aria-label="Import class JSON" class="k-input k-subtle-scrollbar mt-3 min-h-28 font-mono text-xs" placeholder="Paste exported class JSON" bind:value={importText}></textarea>
-      <button class="k-button-primary mt-3 w-full" type="button" onclick={importTemplate}>Import JSON</button>
-    </section>
-  </aside>
-</div>
+    </div>
+  </div>
+</section>
