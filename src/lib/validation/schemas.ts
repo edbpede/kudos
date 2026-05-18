@@ -17,7 +17,12 @@ export const ruleSchema = z.object({
 	id: idSchema,
 	label: trimmed.min(1, "Rule label is required."),
 	description: trimmed.optional(),
-	stars: z.number().int().min(1).max(10),
+	stars: z
+		.number()
+		.int()
+		.min(-10)
+		.max(10)
+		.refine((value) => value !== 0, "Rule stars cannot be zero."),
 });
 
 export const goalSchema = z.object({
@@ -50,7 +55,7 @@ export const classTemplateSchema = z.object({
 	id: idSchema,
 	className: trimmed.min(1, "Class name is required."),
 	students: z.array(studentSchema).min(1, "Add at least one student."),
-	rules: z.array(ruleSchema).min(1, "Add at least one positive rule."),
+	rules: z.array(ruleSchema).min(1, "Add at least one classroom rule."),
 	goals: z.array(goalSchema),
 	rewards: z.array(rewardSchema),
 	preferences: preferencesSchema,

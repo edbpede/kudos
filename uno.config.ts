@@ -9,31 +9,31 @@ export default defineConfig({
 		}),
 	],
 	shortcuts: {
-		"k-shell": "relative min-h-screen overflow-hidden text-emerald-50",
-		"k-page": "mx-auto w-full max-w-7xl px-4 py-5 sm:px-6 lg:px-8",
+		"k-shell": "relative min-h-screen overflow-hidden text-[var(--foreground)]",
+		"k-page": "mx-auto w-full max-w-6xl px-4 py-4 sm:px-6 lg:px-8",
 		"k-eyebrow":
-			"text-xs font-semibold uppercase tracking-[0.14em] text-emerald-200/80",
+			"text-xs font-semibold uppercase tracking-[0.14em] text-[color-mix(in_oklch,var(--primary)_70%,var(--foreground)_30%)]",
 		"k-card":
-			"rounded-2xl border border-white/10 bg-slate-950/62 shadow-lg shadow-black/20",
+			"rounded-3xl border border-[var(--border-soft)] bg-[var(--card)] text-[var(--card-foreground)] shadow-[var(--shadow)]",
 		"k-panel":
-			"rounded-xl border border-white/10 bg-white/6 shadow-sm shadow-black/10",
+			"rounded-2xl border border-[var(--border-soft)] bg-[var(--surface)] shadow-sm",
 		"k-panel-soft":
-			"rounded-xl border border-emerald-300/14 bg-emerald-300/7 shadow-sm shadow-black/10",
+			"rounded-2xl border border-[color-mix(in_oklch,var(--primary)_24%,transparent)] bg-[var(--surface-soft)] shadow-sm",
 		"k-button":
-			"inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold tracking-tight transition duration-150 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-emerald-300/75 disabled:cursor-not-allowed disabled:opacity-45",
+			"inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold tracking-tight transition duration-150 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-[color-mix(in_oklch,var(--ring)_55%,transparent)] disabled:cursor-not-allowed disabled:opacity-45",
 		"k-button-primary":
-			"k-button bg-emerald-300 text-slate-950 shadow-sm shadow-emerald-500/10 hover:bg-emerald-200",
+			"k-button bg-[var(--primary)] text-[var(--primary-foreground)] shadow-sm hover:brightness-105",
 		"k-button-soft":
-			"k-button border border-white/12 bg-white/8 text-emerald-50 hover:bg-white/14",
+			"k-button border border-[var(--border-soft)] bg-[var(--surface-muted)] text-[var(--foreground)] hover:bg-[color-mix(in_oklch,var(--primary)_11%,var(--surface-muted))]",
 		"k-button-danger":
-			"k-button border border-rose-300/30 bg-rose-400/12 text-rose-50 hover:bg-rose-400/20",
+			"k-button border border-[color-mix(in_oklch,var(--danger)_32%,transparent)] bg-[color-mix(in_oklch,var(--danger)_10%,transparent)] text-[var(--foreground)] hover:bg-[color-mix(in_oklch,var(--danger)_16%,transparent)]",
 		"k-input":
-			"w-full rounded-xl border border-white/12 bg-slate-950/55 px-3.5 py-3 text-emerald-50 outline-none transition placeholder:text-slate-400 focus:border-emerald-300/70 focus:ring-3 focus:ring-emerald-300/20",
-		"k-label": "text-sm font-semibold text-emerald-50",
-		"k-muted": "text-sm leading-6 text-slate-300",
+			"w-full rounded-xl border border-[var(--border-soft)] bg-[color-mix(in_oklch,var(--card)_78%,var(--background)_22%)] px-3.5 py-3 text-[var(--foreground)] outline-none transition placeholder:text-[var(--muted-foreground)] focus:border-[var(--ring)] focus:ring-3 focus:ring-[color-mix(in_oklch,var(--ring)_22%,transparent)]",
+		"k-label": "text-sm font-semibold text-[var(--foreground)]",
+		"k-muted": "text-sm leading-6 text-[var(--text-soft)]",
 		"k-pill":
-			"inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/7 px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-emerald-100",
+			"inline-flex items-center gap-2 rounded-full border border-[var(--border-soft)] bg-[var(--surface-muted)] px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--foreground)]",
 		"k-stat":
-			"rounded-xl border border-emerald-300/16 bg-emerald-300/8 px-4 py-3 text-emerald-50",
+			"rounded-xl border border-[color-mix(in_oklch,var(--primary)_22%,transparent)] bg-[var(--surface-soft)] px-4 py-3 text-[var(--foreground)]",
 	},
 });

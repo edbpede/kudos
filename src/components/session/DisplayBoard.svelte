@@ -19,6 +19,7 @@ const totalStars = (state: DisplayState) =>
 	state.students.reduce((sum, student) => sum + student.total, 0);
 const topTotal = (state: DisplayState) =>
 	Math.max(0, ...state.students.map((student) => student.total));
+const formatRuleStars = (stars: number) => `${stars > 0 ? "+" : ""}${stars}`;
 const gridMin = (state: DisplayState) => {
 	if (state.students.length > 45) return "7rem";
 	if (state.students.length > 35) return "8.5rem";
@@ -75,8 +76,8 @@ onMount(() => {
     <header class="k-card p-5 text-center sm:p-7">
       <div>
         <p class="k-eyebrow">Kudos board</p>
-        <h1 class="mt-2 text-4xl font-bold tracking-tight text-white sm:text-6xl lg:text-7xl">{displayState?.className ?? "Classroom Kudos"}</h1>
-        <p class="mt-3 text-lg leading-7 text-slate-300" aria-live="polite">{message}</p>
+        <h1 class="mt-2 text-4xl font-bold tracking-tight text-[var(--foreground)] sm:text-6xl lg:text-7xl">{displayState?.className ?? "Classroom Kudos"}</h1>
+        <p class="mt-3 text-lg leading-7 text-[var(--text-soft)]" aria-live="polite">{message}</p>
       </div>
       {#if displayState}
         <div class="mt-6 grid gap-3 sm:grid-cols-3">
@@ -90,19 +91,19 @@ onMount(() => {
     {#if displayState?.status === "expired" || displayState?.status === "purged"}
       <div class="k-card mt-6 p-10 text-center">
         <p class="text-6xl" aria-hidden="true">☾</p>
-        <h2 class="mt-4 text-3xl font-bold text-white">This display link has expired</h2>
-        <p class="mx-auto mt-3 max-w-2xl text-lg leading-8 text-slate-300">Ask the teacher to start a new live session. No roster data is shown after expiry or purge.</p>
+        <h2 class="mt-4 text-3xl font-bold text-[var(--foreground)]">This display link has expired</h2>
+        <p class="mx-auto mt-3 max-w-2xl text-lg leading-8 text-[var(--text-soft)]">Ask the teacher to start a new live session. No roster data is shown after expiry or purge.</p>
       </div>
     {:else if displayState}
       <div class="mt-6 grid gap-3 sm:gap-4" style={`grid-template-columns: repeat(auto-fit, minmax(${gridMin(displayState)}, 1fr));`}>
         {#each displayState.students as student (student.id)}
           <article class="k-panel-soft overflow-hidden p-3 text-center sm:p-4" aria-label={`${student.label}: ${student.total} stars`}>
-            <h2 class="truncate text-2xl font-bold text-white sm:text-3xl">{student.label}</h2>
+            <h2 class="truncate text-2xl font-bold text-[var(--foreground)] sm:text-3xl">{student.label}</h2>
             <div class="k-star-orb mt-3 rounded-xl border border-emerald-100/20 bg-emerald-300 px-2 py-4 text-4xl font-bold text-slate-950 sm:text-5xl" class:k-celebrate={!displayState.preferences.reducedMotion && student.lastPositiveAt === displayState.updatedAt}>
               <span aria-hidden="true">⭐</span> {student.total}
             </div>
             {#if student.total === topTotal(displayState) && student.total > 0}
-              <p class="mt-3 rounded-full bg-cyan-300/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-cyan-100">Leading</p>
+              <p class="mt-3 rounded-full bg-cyan-300/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-[var(--foreground)]">Leading</p>
             {/if}
           </article>
         {/each}
@@ -110,19 +111,19 @@ onMount(() => {
 
       <div class="mt-6 grid gap-4 lg:grid-cols-3">
         {#if displayState.rules.length}
-          <section class="k-card p-5"><p class="k-eyebrow">Positive rules</p><ul class="mt-3 grid gap-2 text-lg leading-8 text-slate-200">{#each displayState.rules as rule}<li class="rounded-xl border border-white/10 bg-white/5 px-4 py-3">+{rule.stars} · {rule.label}</li>{/each}</ul></section>
+          <section class="k-card p-5"><p class="k-eyebrow">Classroom rules</p><ul class="mt-3 grid gap-2 text-lg leading-8 text-[var(--text-soft)]">{#each displayState.rules as rule}<li class="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-muted)] px-4 py-3">{formatRuleStars(rule.stars)} · {rule.label}</li>{/each}</ul></section>
         {/if}
         {#if displayState.goals.length}
-          <section class="k-card p-5"><p class="k-eyebrow">Today’s focus</p><ul class="mt-3 grid gap-2 text-lg leading-8 text-slate-200">{#each displayState.goals as goal}<li class="rounded-xl border border-white/10 bg-white/5 px-4 py-3">{goal.title}</li>{/each}</ul></section>
+          <section class="k-card p-5"><p class="k-eyebrow">Today’s focus</p><ul class="mt-3 grid gap-2 text-lg leading-8 text-[var(--text-soft)]">{#each displayState.goals as goal}<li class="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-muted)] px-4 py-3">{goal.title}</li>{/each}</ul></section>
         {/if}
         {#if displayState.rewards.length}
-          <section class="k-card p-5"><p class="k-eyebrow">Class rewards</p><ul class="mt-3 grid gap-2 text-lg leading-8 text-slate-200">{#each displayState.rewards as reward}<li class="rounded-xl border border-white/10 bg-white/5 px-4 py-3">{reward.title}</li>{/each}</ul></section>
+          <section class="k-card p-5"><p class="k-eyebrow">Class rewards</p><ul class="mt-3 grid gap-2 text-lg leading-8 text-[var(--text-soft)]">{#each displayState.rewards as reward}<li class="rounded-xl border border-[var(--border-soft)] bg-[var(--surface-muted)] px-4 py-3">{reward.title}</li>{/each}</ul></section>
         {/if}
       </div>
     {:else}
-      <div class="k-card mt-6 p-10 text-center text-slate-300">
+      <div class="k-card mt-6 p-10 text-center text-[var(--text-soft)]">
         <p class="text-6xl" aria-hidden="true">✦</p>
-        <h2 class="mt-4 text-3xl font-bold text-white">Waiting for session state…</h2>
+        <h2 class="mt-4 text-3xl font-bold text-[var(--foreground)]">Waiting for session state…</h2>
         <p class="mx-auto mt-3 max-w-2xl text-lg leading-8">The board will light up as soon as a teacher starts or reconnects a session.</p>
       </div>
     {/if}
