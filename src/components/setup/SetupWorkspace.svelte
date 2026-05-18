@@ -25,6 +25,7 @@ import {
 	loadTemplates,
 	saveTemplates,
 } from "../../lib/persistence/localTemplateStore";
+import { classTemplateSchema } from "../../lib/validation/schemas";
 
 type SetupStep = "class-roster" | "board-details" | "review-launch";
 
@@ -66,6 +67,7 @@ let status = $state("Loading local templates…");
 let importText = $state("");
 let exportText = $state("");
 let liveDisplayUrl = $state("");
+let liveTeacherUrl = $state("");
 let busy = $state(false);
 let currentStep = $state<SetupStep>("class-roster");
 let alphabetizedStudents = $derived(alphabetizeStudents(current.students));
@@ -253,6 +255,8 @@ const exportTemplate = () => {
 		"Export JSON refreshed. It contains no live tokens or runtime session data.";
 };
 
+const getCurrentTemplate = () => classTemplateSchema.parse(current);
+
 const importTemplate = () => {
 	const parsed = parseTemplateJson(importText);
 	if (!parsed.ok) {
@@ -265,19 +269,20 @@ const importTemplate = () => {
 };
 
 const startLocalSession = () => {
-	const session = createSessionFromTemplate(current, "local");
+	const session = createSessionFromTemplate(getCurrentTemplate(), "local");
 	window.localStorage.setItem(ACTIVE_SESSION_KEY, JSON.stringify(session));
-	window.location.href = "/local/session";
+	window.location.assign("/local/session");
 };
 
 const startLiveSession = async () => {
 	busy = true;
 	liveDisplayUrl = "";
+	liveTeacherUrl = "";
 	try {
 		const response = await fetch("/api/session/create", {
 			method: "POST",
 			headers: { "content-type": "application/json" },
-			body: JSON.stringify({ template: current }),
+			body: JSON.stringify({ template: getCurrentTemplate() }),
 		});
 		const body = await response.json();
 		if (!response.ok || !body.ok)
@@ -287,9 +292,9 @@ const startLiveSession = async () => {
 			JSON.stringify(body),
 		);
 		liveDisplayUrl = body.displayUrl;
+		liveTeacherUrl = body.teacherUrl;
 		status =
-			"Live session created. Teacher token is kept in this browser; display link is read-only.";
-		window.location.href = body.teacherUrl;
+			"Live session created. Share the read-only display link, then open teacher controls when ready.";
 	} catch (error) {
 		status =
 			error instanceof Error ? error.message : "Could not create live session.";
@@ -530,7 +535,13 @@ const startLiveSession = async () => {
               <button class="k-button-soft text-base" type="button" disabled={busy} onclick={startLiveSession}>{busy ? "Creating live link…" : "Start live session"}</button>
             </div>
             {#if liveDisplayUrl}
-              <a class="mt-3 block break-all rounded-2xl border border-cyan-300/20 bg-cyan-300/8 p-3 text-sm font-semibold text-cyan-100 underline" href={liveDisplayUrl}>Read-only display URL</a>
+              <div class="mt-3 grid gap-2 rounded-2xl border border-cyan-300/20 bg-cyan-300/8 p-3 text-sm text-cyan-100" aria-live="polite">
+                <p class="font-semibold text-white">Live lesson links are ready.</p>
+                <a class="block break-all font-semibold underline" href={liveDisplayUrl} target="_blank" rel="noreferrer">Read-only display URL: {liveDisplayUrl}</a>
+                {#if liveTeacherUrl}
+                  <a class="k-button-primary mt-1 text-center" href={liveTeacherUrl}>Open teacher controls</a>
+                {/if}
+              </div>
             {/if}
           </section>
         </div>
