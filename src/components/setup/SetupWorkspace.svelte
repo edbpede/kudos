@@ -234,12 +234,12 @@ const startLiveSession = async () => {
     <div class="border-b border-white/10 p-5 sm:p-6">
       <div class="flex flex-wrap items-start justify-between gap-4">
         <div class="max-w-3xl">
-          <p class="k-eyebrow">Teacher setup</p>
-          <h1 id="setup-heading" class="mt-2 text-3xl font-bold tracking-tight text-white sm:text-4xl">
-            Build today’s <span class="k-aurora-wordmark text-emerald-200">Kudos</span> board
-          </h1>
+          <p class="k-eyebrow">Setup</p>
+          <h2 id="setup-heading" class="mt-2 text-3xl font-bold tracking-tight text-white sm:text-4xl">
+            Build your board
+          </h2>
           <p class="mt-3 text-base leading-7 text-slate-300">
-            Set the roster, goals, rewards, and display preferences before starting a local board or temporary live session.
+            Add students, choose goals and rewards, then start a local or live display.
           </p>
         </div>
         <div class="grid min-w-56 gap-2 sm:grid-cols-2 xl:grid-cols-1">
