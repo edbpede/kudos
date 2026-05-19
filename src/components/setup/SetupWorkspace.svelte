@@ -49,7 +49,6 @@ type Copy = {
 	heroEyebrow: string;
 	heroTitle: string;
 	heroText: string;
-	heroSteps: string[];
 	statusLabel: string;
 	studentsLabel: string;
 	rulesLabel: string;
@@ -66,6 +65,7 @@ type Copy = {
 	startFreshButton: string;
 	importTitle: string;
 	importText: string;
+	continueButton: string;
 	importPlaceholder: string;
 	importButton: string;
 	savedTemplates: string;
@@ -119,7 +119,6 @@ type Copy = {
 	portableTitle: string;
 	portableText: string;
 	refreshExport: string;
-	exportLabel: string;
 	importLabel: string;
 	back: string;
 	next: string;
@@ -155,45 +154,47 @@ const copy: Record<Language, Copy> = {
 		themeLight: "Lys",
 		themeDark: "Mørk",
 		heroEyebrow: "Kudos til klasseværelset",
-		heroTitle: "Sæt en rolig belønningstavle op på få minutter.",
+		heroTitle: "Klar til timen på få minutter.",
 		heroText:
-			"Start med eleverne, vælg enkle regler, og åbn tavlen for klassen.",
-		heroSteps: ["Tilføj eller importer elever", "Vælg regler", "Start tavlen"],
+			"Vælg bare: start en ny klasse, eller fortsæt med en du har gemt før.",
 		statusLabel: "Status",
 		studentsLabel: "Elever",
 		rulesLabel: "Regler",
 		savedLabel: "Gemte",
 		newClass: "Ny klasse",
-		setupTitle: "Følg de tre trin",
-		setupText: "Kort, roligt og nemt at ændre senere.",
+		setupTitle: "Tre hurtige trin",
+		setupText: "Gør kun det nødvendige nu. Du kan rette resten senere.",
 		steps: {
 			"class-roster": {
-				label: "Klasse og elever",
-				description: "Start ny klasse eller importer JSON.",
-				title: "1. Klasse og elever",
+				label: "Vælg klasse",
+				description: "Ny klasse eller import.",
+				title: "1. Vælg klasse",
 			},
 			"board-details": {
 				label: "Regler",
-				description: "Vælg hvad der giver eller fjerner stjerner.",
-				title: "2. Vælg regler",
+				description: "Vælg det vigtigste.",
+				title: "2. Vælg enkle regler",
 			},
 			"review-launch": {
 				label: "Start",
-				description: "Tjek og åbn tavlen.",
-				title: "3. Start tavlen",
+				description: "Sidste trin før klassen ser tavlen.",
+				title: "3. Start for klassen",
 			},
 		},
-		startFreshTitle: "Start fra bunden",
-		startFreshText: "Brug dette, når klassen oprettes første gang.",
-		startFreshButton: "Lav ny klasse",
-		importTitle: "Importer fra før",
-		importText: "Indsæt din eksporterede JSON, hvis du allerede har en klasse.",
-		importPlaceholder: "Indsæt klasse-JSON her",
-		importButton: "Importer JSON",
+		startFreshTitle: "Start ny klasse",
+		startFreshText:
+			"Til en ny klasse. Du kan nøjes med navnene og starte hurtigt.",
+		startFreshButton: "Start ny",
+		importTitle: "Fortsæt fra før",
+		importText:
+			"Vælg en gemt klasse på denne computer, eller importér en klasse du har gemt fra før.",
+		continueButton: "Fortsæt / importér",
+		importPlaceholder: "Indsæt din eksporterede klasse her",
+		importButton: "Importér",
 		savedTemplates: "Gemte klasser",
 		className: "Klassenavn",
 		studentsTitle: "Elever",
-		studentsText: "Skriv flere navne på én gang eller ret listen nedenfor.",
+		studentsText: "Skriv navnene ind. Resten kan vente til senere.",
 		bulkLabel: "Tilføj flere elever",
 		bulkPlaceholder: "Anna\nMalthe\nSofia",
 		bulkButton: "Tilføj navne",
@@ -202,10 +203,9 @@ const copy: Record<Language, Copy> = {
 		studentAlias: "Kaldenavn/gruppe",
 		remove: "Fjern",
 		boardDetailsText:
-			"Vælg faste regler først. Du kan stadig redigere dem bagefter.",
+			"Vælg få regler, så tavlen er nem at forklare for klassen.",
 		presetTitle: "Regelforslag",
-		presetText:
-			"Én positiv regel er valgt som standard. Tilføj kun dem, du vil bruge.",
+		presetText: "Tilføj kun de regler, du vil bruge i dag.",
 		addPreset: "Tilføj",
 		customRule: "Tilføj egen regel",
 		ruleLabel: "Regeltekst",
@@ -229,31 +229,30 @@ const copy: Record<Language, Copy> = {
 			alias: "Kaldenavne hvis de findes",
 			initials: "Initialer",
 		},
-		reviewTitle: "Tjek og start",
-		reviewText: "Når listen og reglerne ser rigtige ud, kan tavlen åbnes.",
+		reviewTitle: "Sidste trin: start tavlen",
+		reviewText: "Tjek hurtigt, og vælg hvordan klassen skal se tavlen.",
 		readyCheck: "Klar til klassen",
 		visibleSections: "Synlige felter",
 		motion: "Bevægelse",
 		fullMotion: "Normal",
 		reduced: "Rolig",
-		sessionTitle: "Start",
+		sessionTitle: "Start tavlen",
 		sessionText:
-			"Lokal bliver på denne enhed. Live giver et lærerlink og et læselink til skærmen.",
-		startLocal: "Start lokal tavle",
-		startLive: "Start live tavle",
+			"Vælg lokal, hvis du styrer tavlen herfra. Vælg live, hvis tavlen skal op på en anden skærm.",
+		startLocal: "Start på denne enhed",
+		startLive: "Start på klasseskærm",
 		creatingLive: "Opretter link…",
 		liveReady: "Live-links er klar.",
 		displayUrl: "Skærmlink",
 		openTeacher: "Åbn lærerstyring",
-		portableTitle: "Gem eller flyt klassen",
+		portableTitle: "Import / eksport",
 		portableText:
-			"Eksporten indeholder kun klasseopsætningen—ingen tokens eller aktive sessioner.",
-		refreshExport: "Opdater eksport-JSON",
-		exportLabel: "Eksporteret klasse-JSON",
-		importLabel: "Importer klasse-JSON",
+			"Importér eller eksportér klassen, når den skal bruges på en anden computer.",
+		refreshExport: "Eksportér",
+		importLabel: "Importér klasse",
 		back: "Tilbage",
 		next: "Næste",
-		backToStep1: "Til trin 1",
+		backToStep1: "Ret klassen",
 		stepCounter: "Trin",
 		privacyTitle: "Privat som udgangspunkt",
 		privacyText: "Korte sikkerheder uden ekstra støj.",
@@ -280,9 +279,9 @@ const copy: Record<Language, Copy> = {
 			keepStudent: "Behold mindst én elev i klassen.",
 			keepRule: "Behold mindst én regel.",
 			exportRefreshed:
-				"Eksport-JSON er opdateret. Den indeholder ingen live-tokens.",
+				"Eksporten er hentet og kopieret, hvis browseren tillader det.",
 			liveCreated:
-				"Live-session oprettet. Del skærmlinket og åbn lærerstyring, når du er klar.",
+				"Klasseskærmen er klar. Åbn lærerstyring, når du vil begynde.",
 			liveFailed: "Live-session kunne ikke oprettes.",
 			noNames: "Skriv mindst ét elevnavn først.",
 			addedStudents: (count) =>
@@ -327,46 +326,46 @@ const copy: Record<Language, Copy> = {
 		themeLight: "Light",
 		themeDark: "Dark",
 		heroEyebrow: "Classroom Kudos",
-		heroTitle: "Set up a calm rewards board in minutes.",
+		heroTitle: "Ready for class in minutes.",
 		heroText:
-			"Add students, choose simple rules, then open the board for class.",
-		heroSteps: ["Add or import students", "Choose rules", "Start the board"],
+			"Just choose: start a new class, or continue with one you saved before.",
 		statusLabel: "Status",
 		studentsLabel: "Students",
 		rulesLabel: "Rules",
 		savedLabel: "Saved",
 		newClass: "New class",
-		setupTitle: "Follow the three steps",
-		setupText: "Short, calm, and easy to change later.",
+		setupTitle: "Three quick steps",
+		setupText: "Do only what you need now. You can adjust the rest later.",
 		steps: {
 			"class-roster": {
-				label: "Class & students",
-				description: "Start fresh or import JSON.",
-				title: "1. Class & students",
+				label: "Pick class",
+				description: "New class or import.",
+				title: "1. Pick class",
 			},
 			"board-details": {
 				label: "Rules",
-				description: "Pick what adds or removes stars.",
-				title: "2. Choose rules",
+				description: "Choose the essentials.",
+				title: "2. Choose simple rules",
 			},
 			"review-launch": {
 				label: "Start",
-				description: "Check and open the board.",
-				title: "3. Start the board",
+				description: "Last step before class sees it.",
+				title: "3. Start for class",
 			},
 		},
-		startFreshTitle: "Start fresh",
-		startFreshText:
-			"Use this when you are setting up a class for the first time.",
-		startFreshButton: "Create new class",
-		importTitle: "Import from before",
-		importText: "Paste exported JSON if you already have a class.",
-		importPlaceholder: "Paste class JSON here",
-		importButton: "Import JSON",
+		startFreshTitle: "Start new class",
+		startFreshText: "For a new class. Add names now and start quickly.",
+		startFreshButton: "Start new",
+		importTitle: "Continue from before",
+		importText:
+			"Choose a class saved on this computer, or import one you saved before.",
+		continueButton: "Continue / import",
+		importPlaceholder: "Paste your exported class here",
+		importButton: "Import",
 		savedTemplates: "Saved classes",
 		className: "Class name",
 		studentsTitle: "Students",
-		studentsText: "Add many names at once, or edit the list below.",
+		studentsText: "Type the names. Everything else can wait.",
 		bulkLabel: "Add several students",
 		bulkPlaceholder: "Anna\nMalthe\nSofia",
 		bulkButton: "Add names",
@@ -375,10 +374,9 @@ const copy: Record<Language, Copy> = {
 		studentAlias: "Alias/group",
 		remove: "Remove",
 		boardDetailsText:
-			"Pick ready-made rules first. You can still edit them after.",
+			"Choose a few rules so the board is easy to explain to class.",
 		presetTitle: "Rule suggestions",
-		presetText:
-			"One positive rule is selected by default. Add only the ones you want.",
+		presetText: "Add only the rules you want to use today.",
 		addPreset: "Add",
 		customRule: "Add custom rule",
 		ruleLabel: "Rule text",
@@ -402,31 +400,30 @@ const copy: Record<Language, Copy> = {
 			alias: "Aliases when available",
 			initials: "Initials",
 		},
-		reviewTitle: "Check and start",
-		reviewText: "When the list and rules look right, open the board.",
+		reviewTitle: "Last step: start the board",
+		reviewText: "Do a quick check, then choose how class should see the board.",
 		readyCheck: "Ready for class",
 		visibleSections: "Visible sections",
 		motion: "Motion",
 		fullMotion: "Normal",
 		reduced: "Calm",
-		sessionTitle: "Start",
+		sessionTitle: "Start the board",
 		sessionText:
-			"Local stays on this device. Live gives a teacher link and a read-only display link.",
-		startLocal: "Start local board",
-		startLive: "Start live board",
+			"Choose local if you control the board here. Choose live if it goes on another classroom screen.",
+		startLocal: "Start on this device",
+		startLive: "Start on classroom screen",
 		creatingLive: "Creating link…",
 		liveReady: "Live links are ready.",
 		displayUrl: "Display link",
 		openTeacher: "Open teacher controls",
-		portableTitle: "Save or move the class",
+		portableTitle: "Import / export",
 		portableText:
-			"Export includes class setup only—no tokens or active sessions.",
-		refreshExport: "Refresh export JSON",
-		exportLabel: "Exported class JSON",
-		importLabel: "Import class JSON",
+			"Import or export the class when it needs to move to another computer.",
+		refreshExport: "Export",
+		importLabel: "Import class",
 		back: "Back",
 		next: "Next",
-		backToStep1: "To step 1",
+		backToStep1: "Edit class",
 		stepCounter: "Step",
 		privacyTitle: "Private by default",
 		privacyText: "Short safeguards without extra noise.",
@@ -452,9 +449,10 @@ const copy: Record<Language, Copy> = {
 			imported: (name) => `Imported ${name}.`,
 			keepStudent: "Keep at least one student in the class.",
 			keepRule: "Keep at least one rule.",
-			exportRefreshed: "Export JSON refreshed. It contains no live tokens.",
+			exportRefreshed:
+				"Export downloaded and copied if your browser allows it.",
 			liveCreated:
-				"Live session created. Share the display link, then open teacher controls when ready.",
+				"Classroom screen is ready. Open teacher controls when you want to begin.",
 			liveFailed: "Could not create live session.",
 			noNames: "Type at least one student name first.",
 			addedStudents: (count) =>
@@ -508,7 +506,9 @@ let liveDisplayUrl = $state("");
 let liveTeacherUrl = $state("");
 let busy = $state(false);
 let currentStep = $state<SetupStep>("class-roster");
+let setupVisible = $state(false);
 let stepFocusTarget = $state<HTMLElement | null>(null);
+let importFileInput = $state<HTMLInputElement | null>(null);
 
 const t = $derived(copy[language]);
 const setupSteps = $derived<SetupStepMeta[]>(
@@ -578,6 +578,7 @@ const focusStepPanel = async () => {
 };
 
 const goToStep = (step: SetupStep) => {
+	setupVisible = true;
 	currentStep = step;
 	void focusStepPanel();
 };
@@ -611,6 +612,7 @@ const selectTemplate = (id: string) => {
 		current = structuredClone(found);
 		exportText = serializeTemplate(current);
 		status = t.statuses.loaded(current.className);
+		goToStep("class-roster");
 	}
 };
 
@@ -618,6 +620,7 @@ const newTemplate = () => {
 	const next = createDefaultTemplate();
 	next.className = t.newClass;
 	persist(next);
+	goToStep("class-roster");
 };
 
 const addStudent = () => {
@@ -767,9 +770,26 @@ const removeReward = (id: string) =>
 		rewards: current.rewards.filter((reward) => reward.id !== id),
 	});
 
+const exportFileName = () => {
+	const safeClassName = current.className
+		.trim()
+		.toLowerCase()
+		.replace(/[^\p{L}\p{N}]+/gu, "-")
+		.replace(/(^-|-$)/g, "");
+	return `${safeClassName || "kudos-class"}.kudos.json`;
+};
+
 const exportTemplate = () => {
 	exportText = serializeTemplate(current);
 	void navigator.clipboard?.writeText(exportText)?.catch(() => undefined);
+	const url = URL.createObjectURL(
+		new Blob([exportText], { type: "application/json" }),
+	);
+	const link = document.createElement("a");
+	link.href = url;
+	link.download = exportFileName();
+	link.click();
+	window.setTimeout(() => URL.revokeObjectURL(url), 0);
 	status = t.statuses.exportRefreshed;
 };
 
@@ -784,6 +804,20 @@ const importTemplate = () => {
 	persist(parsed.value);
 	importText = "";
 	status = t.statuses.imported(parsed.value.className);
+	goToStep("class-roster");
+};
+
+const openImportFile = () => {
+	importFileInput?.click();
+};
+
+const importFile = async (event: Event) => {
+	const input = event.currentTarget as HTMLInputElement;
+	const file = input.files?.[0];
+	if (!file) return;
+	importText = await file.text();
+	importTemplate();
+	input.value = "";
 };
 
 const startLocalSession = () => {
@@ -823,6 +857,8 @@ const formatStars = (stars: number) => `${stars > 0 ? "+" : ""}${stars}`;
 </script>
 
 <div class="grid gap-4">
+  <input bind:this={importFileInput} class="sr-only" type="file" accept=".json,application/json" onchange={importFile} aria-hidden="true" tabindex="-1" />
+
   <section class="k-card overflow-hidden p-4 sm:p-6" aria-labelledby="landing-heading">
     <div class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
       <div class="max-w-3xl">
@@ -836,14 +872,21 @@ const formatStars = (stars: number) => `${stars > 0 ? "+" : ""}${stars}`;
         <p class="mt-3 max-w-2xl text-base leading-7 text-[var(--text-soft)]">
           {t.heroText}
         </p>
-        <ol class="mt-5 grid gap-2 sm:grid-cols-3" aria-label={t.setupTitle}>
-          {#each t.heroSteps as item, index}
-            <li class="flex items-center gap-2 rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-soft)] p-3 text-sm font-semibold text-[var(--foreground)]">
-              <span class="grid size-7 shrink-0 place-items-center rounded-full bg-[var(--primary)] text-xs text-[var(--primary-foreground)]">{index + 1}</span>
-              <span>{item}</span>
-            </li>
-          {/each}
-        </ol>
+        <div class="mt-6 grid gap-3 sm:grid-cols-2" aria-label={t.setupTitle}>
+          <button class="group rounded-3xl border border-[color-mix(in_oklch,var(--primary)_28%,transparent)] bg-[var(--surface-soft)] p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-[var(--primary)] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-[color-mix(in_oklch,var(--ring)_30%,transparent)]" type="button" onclick={newTemplate}>
+            <span class="k-eyebrow">1</span>
+            <span class="mt-2 block text-2xl font-bold text-[var(--foreground)]">{t.startFreshTitle}</span>
+            <span class="mt-2 block text-sm leading-6 text-[var(--text-soft)]">{t.startFreshText}</span>
+            <span class="k-button-primary mt-4 pointer-events-none">{t.startFreshButton}</span>
+          </button>
+          <button class="group rounded-3xl border border-[var(--border-soft)] bg-[var(--card)] p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-[var(--primary)] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-[color-mix(in_oklch,var(--ring)_30%,transparent)]" type="button" onclick={() => goToStep("class-roster")}>
+            <span class="k-eyebrow">2</span>
+            <span class="mt-2 block text-2xl font-bold text-[var(--foreground)]">{t.importTitle}</span>
+            <span class="mt-2 block text-sm leading-6 text-[var(--text-soft)]">{t.importText}</span>
+            <span class="mt-3 inline-flex rounded-full border border-[var(--border-soft)] bg-[var(--surface-muted)] px-3 py-1 text-xs font-bold text-[var(--foreground)]">{templates.length} {t.savedLabel}</span>
+            <span class="k-button-soft mt-4 pointer-events-none">{t.continueButton}</span>
+          </button>
+        </div>
       </div>
 
       <div class="grid gap-2 sm:grid-cols-2 lg:w-72 lg:grid-cols-1" aria-label="Language and theme">
@@ -859,6 +902,7 @@ const formatStars = (stars: number) => `${stars > 0 ? "+" : ""}${stars}`;
     </div>
   </section>
 
+  {#if setupVisible}
   <section class="k-card overflow-hidden" aria-labelledby="setup-heading">
     <div class="border-b border-[var(--border-soft)] p-4 sm:p-5">
       <div class="flex flex-wrap items-start justify-between gap-3">
@@ -913,8 +957,12 @@ const formatStars = (stars: number) => `${stars > 0 ? "+" : ""}${stars}`;
             <section class="k-panel p-4" aria-labelledby="import-heading">
               <h4 id="import-heading" class="text-xl font-bold text-[var(--foreground)]">{t.importTitle}</h4>
               <p class="mt-2 text-sm leading-6 text-[var(--text-soft)]">{t.importText}</p>
-              <textarea aria-label={t.importLabel} class="k-input k-subtle-scrollbar mt-3 min-h-24 font-mono text-xs" placeholder={t.importPlaceholder} bind:value={importText}></textarea>
-              <button class="k-button-soft mt-3 w-full" type="button" onclick={importTemplate}>{t.importButton}</button>
+              <button class="k-button-soft mt-4 w-full" type="button" onclick={openImportFile}>{t.importButton}</button>
+              <details class="mt-3 rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-muted)] p-3 text-sm text-[var(--text-soft)]">
+                <summary class="cursor-pointer font-semibold text-[var(--foreground)]">{t.importLabel}</summary>
+                <textarea aria-label={t.importLabel} class="k-input k-subtle-scrollbar mt-3 min-h-24 font-mono text-xs" placeholder={t.importPlaceholder} bind:value={importText}></textarea>
+                <button class="k-button-soft mt-3 w-full" type="button" onclick={importTemplate}>{t.importButton}</button>
+              </details>
             </section>
           </div>
 
@@ -1094,10 +1142,10 @@ const formatStars = (stars: number) => `${stars > 0 ? "+" : ""}${stars}`;
             <p class="k-eyebrow">{t.portableTitle}</p>
             <h4 id="portable-template-heading" class="mt-1 text-2xl font-bold text-[var(--foreground)]">{t.portableTitle}</h4>
             <p class="mt-2 text-sm leading-6 text-[var(--text-soft)]">{t.portableText}</p>
-            <button class="k-button-soft mt-4" type="button" onclick={exportTemplate}>{t.refreshExport}</button>
-            <textarea aria-label={t.exportLabel} class="k-input k-subtle-scrollbar mt-3 min-h-36 font-mono text-xs" readonly value={exportText}></textarea>
-            <textarea aria-label={t.importLabel} class="k-input k-subtle-scrollbar mt-3 min-h-28 font-mono text-xs" placeholder={t.importPlaceholder} bind:value={importText}></textarea>
-            <button class="k-button-primary mt-3 w-full" type="button" onclick={importTemplate}>{t.importButton}</button>
+            <div class="mt-4 flex flex-wrap gap-2">
+              <button class="k-button-soft" type="button" onclick={exportTemplate}>{t.refreshExport}</button>
+              <button class="k-button-primary" type="button" onclick={openImportFile}>{t.importButton}</button>
+            </div>
           </section>
         </section>
       {/if}
@@ -1113,6 +1161,8 @@ const formatStars = (stars: number) => `${stars > 0 ? "+" : ""}${stars}`;
       </div>
     </div>
   </section>
+
+  {/if}
 
   <section class="k-card p-4 sm:p-5" aria-labelledby="privacy-heading">
     <div class="grid gap-4 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,2fr)] lg:items-center">
