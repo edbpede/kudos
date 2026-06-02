@@ -9,6 +9,7 @@ import {
 	undoLastEvent,
 } from "../../lib/domain/session";
 import type { ClassroomSession, DisplayState } from "../../lib/domain/types";
+import { isTerminalLiveErrorCode } from "../../lib/liveSessionRetry";
 import { ACTIVE_SESSION_KEY } from "../../lib/persistence/localTemplateStore";
 
 interface Props {
@@ -20,7 +21,12 @@ interface Props {
 interface CachedLiveSession {
 	displayState?: DisplayState;
 	displayUrl?: string;
+	displayToken?: string;
 	expiresAt?: string;
+	sessionId?: string;
+	teacherToken?: string;
+	teacherUrl?: string;
+	[key: string]: unknown;
 }
 
 interface LiveApiResult {
@@ -49,6 +55,27 @@ const cleanupLiveMetadata = () => {
 	window.localStorage.removeItem(liveStorageKey());
 	displayUrl = "";
 };
+const readCachedLiveRecord = () => {
+	const raw = window.localStorage.getItem(liveStorageKey());
+	if (!raw) return null;
+	return JSON.parse(raw) as CachedLiveSession;
+};
+const displayTokenFromUrl = (url: string | undefined) => {
+	if (!url) return "";
+	try {
+		return new URL(url, window.location.origin).searchParams.get("token") ?? "";
+	} catch {
+		return "";
+	}
+};
+const displayApiUrlFor = (record: CachedLiveSession | null) => {
+	const token =
+		record?.displayToken ??
+		displayTokenFromUrl(record?.displayUrl ?? displayUrl);
+	return token
+		? `/api/session/${sessionId}/display?token=${encodeURIComponent(token)}`
+		: "";
+};
 
 const saveLocal = (next: ClassroomSession) => {
 	session = next;
@@ -71,10 +98,9 @@ const loadLocal = () => {
 };
 
 const loadLive = () => {
-	const raw = window.localStorage.getItem(liveStorageKey());
 	let record: CachedLiveSession | null = null;
 	try {
-		record = raw ? (JSON.parse(raw) as CachedLiveSession) : null;
+		record = readCachedLiveRecord();
 	} catch {
 		cleanupLiveMetadata();
 		message = "Live session metadata was invalid and has been cleaned up.";
@@ -101,8 +127,7 @@ onMount(() => {
 const updateLiveStorage = (body: { displayState?: DisplayState }) => {
 	if (!body.displayState) return;
 	displayState = body.displayState;
-	const raw = window.localStorage.getItem(liveStorageKey());
-	const record = raw ? (JSON.parse(raw) as CachedLiveSession) : {};
+	const record = readCachedLiveRecord() ?? {};
 	window.localStorage.setItem(
 		liveStorageKey(),
 		JSON.stringify({ ...record, displayState }),
@@ -135,6 +160,52 @@ const callLive = async (path: string, body: unknown = {}) => {
 		return result;
 	} catch (error) {
 		message = error instanceof Error ? error.message : "Live update failed.";
+	} finally {
+		busy = false;
+	}
+};
+
+const reconnectLive = async () => {
+	if (mode !== "live") return;
+	busy = true;
+	try {
+		let record: CachedLiveSession | null = null;
+		try {
+			record = readCachedLiveRecord();
+		} catch {
+			cleanupLiveMetadata();
+			displayState = null;
+			message = "Live session metadata was invalid and has been cleaned up.";
+			return;
+		}
+		if (record?.expiresAt && Date.parse(record.expiresAt) <= Date.now()) {
+			cleanupLiveMetadata();
+			displayState = null;
+			message = "Live session metadata expired and has been cleaned up.";
+			return;
+		}
+		displayUrl = record?.displayUrl ?? displayUrl;
+		const apiUrl = displayApiUrlFor(record);
+		if (!apiUrl) {
+			message =
+				"Reconnect needs the saved display token. Reopen the live teacher link from setup.";
+			return;
+		}
+		const response = await fetch(apiUrl);
+		const result = (await response.json()) as LiveApiResult;
+		if (!response.ok || !result.ok) {
+			message =
+				result.message ??
+				(isTerminalLiveErrorCode(result.code)
+					? "The live session is unavailable."
+					: "Live reconnect failed. Try again in a moment.");
+			return;
+		}
+		if (result.displayState) updateLiveStorage(result);
+		message = "Live session reconnected.";
+	} catch {
+		message =
+			"Live reconnect failed. The saved session was kept so you can try again.";
 	} finally {
 		busy = false;
 	}
@@ -226,6 +297,7 @@ const copyDisplayUrl = () => {
         </div>
         <div class="grid gap-2 sm:grid-cols-2 lg:w-72 lg:grid-cols-1">
           <a class="k-button-soft" href="/">Setup</a>
+          {#if mode === "live"}<button class="k-button-soft" type="button" disabled={busy} onclick={reconnectLive}>Reconnect</button>{/if}
           {#if displayUrl}<a class="k-button-primary" href={displayUrl} target="_blank" rel="noreferrer">Open display</a>{/if}
         </div>
       </div>
@@ -244,6 +316,7 @@ const copyDisplayUrl = () => {
         <section class="k-panel p-4">
           <p class="k-eyebrow">Operations</p>
           <div class="mt-4 grid gap-2">
+            {#if mode === "live"}<button class="k-button-soft" type="button" disabled={busy} onclick={reconnectLive}>Reconnect live state</button>{/if}
             <button class="k-button-soft" type="button" disabled={busy || !displayState} onclick={undo}>Undo last star</button>
             <button class="k-button-soft" type="button" disabled={busy || !displayState || mode === "live"} onclick={reset}>Reset local stars</button>
             <button class="k-button-danger" type="button" disabled={busy || !displayState || !active(displayState)} onclick={end}>End session</button>
