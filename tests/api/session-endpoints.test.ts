@@ -69,6 +69,28 @@ describe("session endpoints", () => {
 		expect(createResponse.status).toBe(400);
 	});
 
+	test("create refuses live sessions when serverless has no durable store", async () => {
+		const originalVercel = process.env.VERCEL;
+		process.env.VERCEL = "1";
+		try {
+			const response = await createPost(
+				context(
+					jsonRequest("http://localhost/api/session/create", {
+						template: createDefaultTemplate(),
+					}),
+					"http://localhost/api/session/create",
+				),
+			);
+			expect(response.status).toBe(503);
+			const body = await response.json();
+			expect(body.ok).toBe(false);
+			expect(body.code).toBe("RELAY_NOT_DURABLE");
+		} finally {
+			if (originalVercel === undefined) delete process.env.VERCEL;
+			else process.env.VERCEL = originalVercel;
+		}
+	});
+
 	test("create/display/event flow and display-token mutation rejection", async () => {
 		const template = createDefaultTemplate();
 		const createResponse = await createPost(
