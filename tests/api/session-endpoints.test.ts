@@ -120,6 +120,50 @@ describe("session endpoints", () => {
 		expect(totalFor(acceptedBody.displayState, studentId)).toBe(1);
 	});
 
+	test("successive teacher event posts mutate live display state cumulatively", async () => {
+		const createResponse = await createPost(
+			context(
+				jsonRequest("http://localhost/api/session/create", {
+					template: createDefaultTemplate(),
+				}),
+				"http://localhost/api/session/create",
+			),
+		);
+		expect(createResponse.status).toBe(201);
+		const created = await createResponse.json();
+		const [firstStudent, secondStudent] = created.displayState.students;
+		const eventUrl = `http://localhost/api/session/${created.sessionId}/event`;
+		const postEvent = (studentId: string, delta: 1 | -1) =>
+			eventPost(
+				context(
+					jsonRequest(
+						eventUrl,
+						{ studentId, delta },
+						{ authorization: `Bearer ${created.teacherToken}` },
+					),
+					eventUrl,
+					{ sessionId: created.sessionId },
+				),
+			);
+
+		const firstAdd = await postEvent(firstStudent.id, 1);
+		const firstAddBody = await firstAdd.json();
+		expect(firstAdd.status).toBe(200);
+		expect(totalFor(firstAddBody.displayState, firstStudent.id)).toBe(1);
+
+		const secondAdd = await postEvent(secondStudent.id, 1);
+		const secondAddBody = await secondAdd.json();
+		expect(secondAdd.status).toBe(200);
+		expect(totalFor(secondAddBody.displayState, firstStudent.id)).toBe(1);
+		expect(totalFor(secondAddBody.displayState, secondStudent.id)).toBe(1);
+
+		const firstAddAgain = await postEvent(firstStudent.id, 1);
+		const firstAddAgainBody = await firstAddAgain.json();
+		expect(firstAddAgain.status).toBe(200);
+		expect(totalFor(firstAddAgainBody.displayState, firstStudent.id)).toBe(2);
+		expect(totalFor(firstAddAgainBody.displayState, secondStudent.id)).toBe(1);
+	});
+
 	test("display endpoint allows read-only teacher reconnect without leaking tokens", async () => {
 		const createResponse = await createPost(
 			context(

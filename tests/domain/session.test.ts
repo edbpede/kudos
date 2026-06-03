@@ -3,6 +3,7 @@ import { createDefaultTemplate } from "../../src/lib/domain/defaults";
 import {
 	alphabetizeStudents,
 	applyStarEvent,
+	createBulkStarEventInputs,
 	createSessionFromTemplate,
 	deriveDisplayState,
 	deriveTotals,
@@ -123,6 +124,25 @@ describe("session domain", () => {
 		expect(deriveTotals(session)[studentId]).toBe(1);
 		session = undoLastEvent(session);
 		expect(deriveTotals(session)[studentId]).toBe(0);
+	});
+
+	test("creates bulk star inputs for all adds and positive-only removals", () => {
+		const template = createDefaultTemplate();
+		let session = createSessionFromTemplate(template);
+		const [first, second] = session.students;
+		session = applyStarEvent(session, { studentId: first.id, delta: 1 });
+		session = applyStarEvent(session, { studentId: first.id, delta: 1 });
+		session = applyStarEvent(session, { studentId: second.id, delta: 1 });
+		const display = deriveDisplayState(session);
+
+		expect(createBulkStarEventInputs(display, 1)).toEqual(
+			display.students.map((student) => ({ studentId: student.id, delta: 1 })),
+		);
+		expect(createBulkStarEventInputs(display, -1)).toEqual(
+			display.students
+				.filter((student) => student.total > 0)
+				.map((student) => ({ studentId: student.id, delta: -1 })),
+		);
 	});
 
 	test("reset/end update status and display projection excludes write secrets", () => {

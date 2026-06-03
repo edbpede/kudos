@@ -2,13 +2,18 @@
 import { onMount } from "svelte";
 import {
 	applyStarEvent,
+	createBulkStarEventInputs,
 	deriveDisplayState,
 	endSession,
 	reactivateSession,
 	resetSession,
 	undoLastEvent,
 } from "../../lib/domain/session";
-import type { ClassroomSession, DisplayState } from "../../lib/domain/types";
+import type {
+	ClassroomSession,
+	DisplayState,
+	StarDelta,
+} from "../../lib/domain/types";
 import { isTerminalLiveErrorCode } from "../../lib/liveSessionRetry";
 import { ACTIVE_SESSION_KEY } from "../../lib/persistence/localTemplateStore";
 
@@ -49,12 +54,16 @@ const liveStorageKey = () => `kudos.live.${sessionId}`;
 const totalStars = (state: DisplayState) =>
 	state.students.reduce((sum, student) => sum + student.total, 0);
 const active = (state: DisplayState | null) => state?.status === "active";
+const hasRemovableStars = (state: DisplayState | null) =>
+	state?.students.some((student) => student.total > 0) ?? false;
 const statusLabel = (state: DisplayState | null) =>
 	state ? state.status.toUpperCase() : "WAITING";
 const cleanupLiveMetadata = () => {
 	window.localStorage.removeItem(liveStorageKey());
 	displayUrl = "";
 };
+const shouldClearLiveMetadata = (code: unknown) =>
+	code === "EXPIRED" || code === "NOT_FOUND" || code === "PURGED";
 const readCachedLiveRecord = () => {
 	const raw = window.localStorage.getItem(liveStorageKey());
 	if (!raw) return null;
@@ -141,28 +150,28 @@ const updateLiveStorage = (body: { displayState?: DisplayState }) => {
 	);
 };
 
+const requestLive = async (path: string, body: unknown = {}) => {
+	const response = await fetch(`/api/session/${sessionId}/${path}`, {
+		method: "POST",
+		headers: {
+			authorization: `Bearer ${teacherToken}`,
+			"content-type": "application/json",
+		},
+		body: JSON.stringify(body),
+	});
+	const result = (await response.json()) as LiveApiResult;
+	if (!response.ok || !result.ok) {
+		if (shouldClearLiveMetadata(result.code)) cleanupLiveMetadata();
+		throw new Error(result.message ?? "Live update failed.");
+	}
+	updateLiveStorage(result);
+	return result;
+};
+
 const callLive = async (path: string, body: unknown = {}) => {
 	busy = true;
 	try {
-		const response = await fetch(`/api/session/${sessionId}/${path}`, {
-			method: "POST",
-			headers: {
-				authorization: `Bearer ${teacherToken}`,
-				"content-type": "application/json",
-			},
-			body: JSON.stringify(body),
-		});
-		const result = (await response.json()) as LiveApiResult;
-		if (!response.ok || !result.ok) {
-			if (
-				result.code === "EXPIRED" ||
-				result.code === "NOT_FOUND" ||
-				result.code === "PURGED"
-			)
-				cleanupLiveMetadata();
-			throw new Error(result.message ?? "Live update failed.");
-		}
-		updateLiveStorage(result);
+		const result = await requestLive(path, body);
 		message = "Live session updated.";
 		return result;
 	} catch (error) {
@@ -248,6 +257,70 @@ const remove = (studentId: string) => {
 				error instanceof Error ? error.message : "Could not remove star.";
 		}
 	} else void callLive("event", { studentId, delta: -1 });
+};
+
+const batchMessage = (delta: StarDelta, count: number) =>
+	`${delta === 1 ? "Added" : "Removed"} 1 star ${
+		delta === 1 ? "for" : "from"
+	} ${count} ${count === 1 ? "student" : "students"}.`;
+
+const applyLiveBatch = async (
+	inputs: Array<{ studentId: string; delta: StarDelta }>,
+	delta: StarDelta,
+) => {
+	// Live sessions still expose single-event writes, so bulk updates are
+	// sequential and report partial progress if a later request fails.
+	busy = true;
+	let completed = 0;
+	try {
+		for (const input of inputs) {
+			await requestLive("event", input);
+			completed += 1;
+		}
+		message = batchMessage(delta, completed);
+	} catch (error) {
+		const detail =
+			error instanceof Error ? error.message : "Live batch update failed.";
+		message =
+			completed > 0
+				? `${batchMessage(delta, completed)} ${inputs.length - completed} ${
+						inputs.length - completed === 1 ? "student was" : "students were"
+					} not updated. ${detail}`
+				: detail;
+	} finally {
+		busy = false;
+	}
+};
+
+const applyAll = (delta: StarDelta) => {
+	if (!displayState || !active(displayState)) return;
+	const inputs = createBulkStarEventInputs(displayState, delta);
+	if (inputs.length === 0) {
+		message =
+			delta === -1
+				? "No students have stars to remove."
+				: "No students are available.";
+		return;
+	}
+	if (mode === "local") {
+		if (!session) {
+			message = "No local session found. Return to setup to start one.";
+			return;
+		}
+		try {
+			const next = inputs.reduce(
+				(current, input) => applyStarEvent(current, input),
+				session,
+			);
+			saveLocal(next);
+			message = batchMessage(delta, inputs.length);
+		} catch (error) {
+			message =
+				error instanceof Error ? error.message : "Could not update stars.";
+		}
+		return;
+	}
+	void applyLiveBatch(inputs, delta);
 };
 
 const undo = () => {
@@ -339,6 +412,8 @@ const copyDisplayUrl = () => {
           <p class="k-eyebrow">Operations</p>
           <div class="mt-4 grid gap-2">
             {#if mode === "live"}<button class="k-button-soft" type="button" disabled={busy} onclick={reconnectLive}>Reconnect live state</button>{/if}
+            <button class="k-button-primary" type="button" disabled={busy || !displayState || !active(displayState)} aria-label="Add one star for all students" onclick={() => applyAll(1)}>+1 star for all</button>
+            <button class="k-button-soft" type="button" disabled={busy || !displayState || !active(displayState) || !hasRemovableStars(displayState)} aria-label="Remove one star from all students with stars" onclick={() => applyAll(-1)}>−1 star for all</button>
             <button class="k-button-soft" type="button" disabled={busy || !displayState} onclick={undo}>Undo last star</button>
             <button class="k-button-soft" type="button" disabled={busy || !displayState || mode === "live"} onclick={reset}>Reset local stars</button>
             <button class="k-button-danger" type="button" disabled={busy || !displayState || !active(displayState)} onclick={end}>End session</button>
