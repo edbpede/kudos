@@ -21,15 +21,33 @@ bun run test
 
 ## Live relay environment
 
-Production live mode expects a Vercel-compatible Redis/Upstash REST provider:
+Production live mode requires a Redis/Upstash REST provider. Either credential
+pair is accepted (checked in this order):
 
 ```bash
+# 1. Legacy Vercel KV names
 KV_REST_API_URL="https://..."
 KV_REST_API_TOKEN="..."
+
+# 2. Vercel Marketplace Upstash names (Vercel KV is no longer offered for new projects)
+UPSTASH_REDIS_REST_URL="https://...upstash.io"
+UPSTASH_REDIS_REST_TOKEN="..."
+
 KUDOS_LIVE_TTL_SECONDS="43200"
 ```
 
-When these variables are absent, development and tests use an in-memory relay. That fallback is not durable across serverless invocations and is intentionally documented as local-only.
+When none of these variables are present, development and tests use an in-memory
+relay. **That fallback is not durable across serverless invocations** — on Vercel
+each request can hit a different Lambda instance, so live sessions disappear and
+clients see `404` on `/display` and `400` on `/event` ("This live session is no
+longer available"). The credentials must be set in the deployment environment,
+not only in `.env`.
+
+Verify which backend production is using by requesting `/api/session/health`. It
+returns `{"relay":"redis","durable":true,...}` when a durable store is active, or
+`{"relay":"memory","durable":false,...}` when the in-memory fallback is in effect.
+No secrets or session data are exposed.
+
 Live TTL overrides are clamped to a maximum of 12 hours so stale live-session records self-destruct.
 
 ## Architecture freeze for live mode
