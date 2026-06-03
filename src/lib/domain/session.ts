@@ -69,6 +69,22 @@ export const deriveTotals = (
 	return totals;
 };
 
+export interface StarEventInput {
+	studentId: string;
+	delta: StarDelta;
+	reason?: string;
+}
+
+export const createBulkStarEventInputs = (
+	displayState: Pick<DisplayState, "students">,
+	delta: StarDelta,
+): StarEventInput[] =>
+	// Bulk removal uses displayed totals because DisplayState intentionally omits
+	// allowNegativeTotals; this mirrors the teacher UI's existing zero-floor guard.
+	displayState.students
+		.filter((student) => delta === 1 || student.total > 0)
+		.map((student) => ({ studentId: student.id, delta }));
+
 const assertActive = (session: ClassroomSession) => {
 	if (session.status !== "active") {
 		throw new DomainError("This session is not active.", "SESSION_NOT_ACTIVE");
@@ -77,7 +93,7 @@ const assertActive = (session: ClassroomSession) => {
 
 export const applyStarEvent = (
 	session: ClassroomSession,
-	input: { studentId: string; delta: StarDelta; reason?: string },
+	input: StarEventInput,
 	now = new Date().toISOString(),
 	idGenerator?: IdGenerator,
 ): ClassroomSession => {
