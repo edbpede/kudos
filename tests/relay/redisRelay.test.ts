@@ -66,10 +66,17 @@ describe("RedisRestRelay", () => {
 			{ studentId, delta: 1 },
 		);
 		expect(totalFor(display, studentId)).toBe(1);
+		const teacherRead = await relay.readTeacher(
+			created.sessionId,
+			created.teacherToken,
+		);
+		expect(totalFor(teacherRead, studentId)).toBe(1);
 		const lastSet = commands.filter((command) => command[0] === "SET").at(-1);
 		expect(lastSet?.[3]).toBe("EX");
 		expect(Number(lastSet?.[4])).toBeGreaterThan(0);
 		expect(JSON.stringify(display)).not.toContain(created.teacherToken);
+		expect(JSON.stringify(teacherRead)).not.toContain(created.teacherToken);
+		expect(JSON.stringify(teacherRead)).not.toContain(created.displayToken);
 	});
 
 	test("purges with DEL after teacher authorization", async () => {

@@ -63,6 +63,10 @@ export class RedisRestRelay implements LiveRelay {
 		return toDisplayState(record);
 	}
 
+	async readTeacher(sessionId: string, teacherToken: string) {
+		return toDisplayState(await this.authorize(sessionId, teacherToken));
+	}
+
 	async applyEvent(
 		sessionId: string,
 		teacherToken: string,

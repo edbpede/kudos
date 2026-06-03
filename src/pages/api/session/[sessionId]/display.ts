@@ -1,4 +1,5 @@
 import type { APIRoute } from "astro";
+import { readBearerToken } from "../../../../lib/relay/auth";
 import { expiredDisplayState } from "../../../../lib/relay/displayState";
 import { RelayError } from "../../../../lib/relay/types";
 import { getRelay } from "../../../../lib/server/relay";
@@ -13,11 +14,13 @@ const json = (body: unknown, status = 200) =>
 		},
 	});
 
-export const GET: APIRoute = async ({ params, url }) => {
+export const GET: APIRoute = async ({ params, request, url }) => {
 	const sessionId = params.sessionId ?? "";
 	const token = url.searchParams.get("token") ?? "";
 	try {
-		const displayState = await getRelay().readDisplay(sessionId, token);
+		const displayState = token
+			? await getRelay().readDisplay(sessionId, token)
+			: await getRelay().readTeacher(sessionId, readBearerToken(request));
 		return json({ ok: true, displayState });
 	} catch (error) {
 		if (

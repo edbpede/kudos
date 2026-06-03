@@ -29,6 +29,7 @@ export interface LiveRelay {
 		ttlSeconds: number,
 	): Promise<LiveSessionCreated>;
 	readDisplay(sessionId: string, displayToken: string): Promise<DisplayState>;
+	readTeacher(sessionId: string, teacherToken: string): Promise<DisplayState>;
 	applyEvent(
 		sessionId: string,
 		teacherToken: string,
