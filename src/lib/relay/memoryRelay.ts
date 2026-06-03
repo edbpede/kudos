@@ -54,6 +54,10 @@ export class MemoryRelay implements LiveRelay {
 		return toDisplayState(record);
 	}
 
+	async readTeacher(sessionId: string, teacherToken: string) {
+		return toDisplayState(this.authorize(sessionId, teacherToken));
+	}
+
 	async applyEvent(
 		sessionId: string,
 		teacherToken: string,

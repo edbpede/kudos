@@ -20,7 +20,9 @@ let message = $state("Connecting to display state…");
 let reconnecting = $state(false);
 let localTimer: ReturnType<typeof setInterval> | undefined;
 let liveTimer: ReturnType<typeof setTimeout> | undefined;
+let liveAbortController: AbortController | undefined;
 let liveInFlight = false;
+let liveRequestId = 0;
 let liveStopped = false;
 let liveFailureCount = 0;
 let unmounted = false;
@@ -73,16 +75,21 @@ const scheduleLive = (delayMs: number) => {
 
 const loadLive = async (manual = false) => {
 	if (liveInFlight) {
-		if (manual) message = "Reconnect is already in progress…";
-		return;
+		if (!manual) return;
+		liveAbortController?.abort();
 	}
+	const requestId = ++liveRequestId;
+	const controller = new AbortController();
+	liveAbortController = controller;
 	liveInFlight = true;
 	reconnecting = manual;
 	let nextDelayMs: number | null = null;
 	try {
-		const response = await fetch(liveDisplayApiUrl());
+		const response = await fetch(liveDisplayApiUrl(), {
+			signal: controller.signal,
+		});
 		const body = (await response.json()) as DisplayApiResult;
-		if (unmounted) return;
+		if (unmounted || requestId !== liveRequestId) return;
 		if (body.displayState) displayState = body.displayState;
 		if (!response.ok || !body.ok) {
 			const decision = liveRetryDecision({
@@ -109,7 +116,8 @@ const loadLive = async (manual = false) => {
 		);
 		message = manual ? "Live display reconnected." : "Live display connected.";
 	} catch {
-		if (unmounted) return;
+		if (unmounted || controller.signal.aborted || requestId !== liveRequestId)
+			return;
 		const decision = liveRetryDecision({
 			failureCount: liveFailureCount + 1,
 		});
@@ -118,10 +126,13 @@ const loadLive = async (manual = false) => {
 		nextDelayMs = decision.delayMs;
 		message = `Connection lost. Reconnecting in ${formatDelay(nextDelayMs)}…`;
 	} finally {
-		liveInFlight = false;
-		if (!unmounted) reconnecting = false;
-		if (!unmounted && !liveStopped && nextDelayMs !== null)
-			scheduleLive(nextDelayMs);
+		if (requestId === liveRequestId) {
+			liveInFlight = false;
+			liveAbortController = undefined;
+			if (!unmounted) reconnecting = false;
+			if (!unmounted && !liveStopped && nextDelayMs !== null)
+				scheduleLive(nextDelayMs);
+		}
 	}
 };
 
@@ -145,6 +156,7 @@ onMount(() => {
 		unmounted = true;
 		if (localTimer) clearInterval(localTimer);
 		clearLiveTimer();
+		liveAbortController?.abort();
 	};
 });
 </script>

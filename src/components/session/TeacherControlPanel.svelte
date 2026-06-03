@@ -76,6 +76,13 @@ const displayApiUrlFor = (record: CachedLiveSession | null) => {
 		? `/api/session/${sessionId}/display?token=${encodeURIComponent(token)}`
 		: "";
 };
+const teacherReadRequest = () =>
+	teacherToken
+		? {
+				url: `/api/session/${sessionId}/display`,
+				init: { headers: { authorization: `Bearer ${teacherToken}` } },
+			}
+		: null;
 
 const saveLocal = (next: ClassroomSession) => {
 	session = next;
@@ -186,14 +193,27 @@ const reconnectLive = async () => {
 		}
 		displayUrl = record?.displayUrl ?? displayUrl;
 		const apiUrl = displayApiUrlFor(record);
-		if (!apiUrl) {
+		const teacherRequest = apiUrl ? null : teacherReadRequest();
+		if (!apiUrl && !teacherRequest) {
 			message =
-				"Reconnect needs the saved display token. Reopen the live teacher link from setup.";
+				"Reconnect needs the saved display token or teacher link token. Reopen the live teacher link from setup.";
 			return;
 		}
-		const response = await fetch(apiUrl);
+		const response = await fetch(
+			apiUrl || teacherRequest?.url || "",
+			teacherRequest?.init,
+		);
 		const result = (await response.json()) as LiveApiResult;
 		if (!response.ok || !result.ok) {
+			if (isTerminalLiveErrorCode(result.code)) {
+				if (
+					result.code === "EXPIRED" ||
+					result.code === "NOT_FOUND" ||
+					result.code === "PURGED"
+				)
+					cleanupLiveMetadata();
+				displayState = result.displayState ?? null;
+			}
 			message =
 				result.message ??
 				(isTerminalLiveErrorCode(result.code)
@@ -202,7 +222,9 @@ const reconnectLive = async () => {
 			return;
 		}
 		if (result.displayState) updateLiveStorage(result);
-		message = "Live session reconnected.";
+		message = teacherRequest
+			? "Live session reconnected from the teacher link. Display link metadata is not saved in this browser."
+			: "Live session reconnected.";
 	} catch {
 		message =
 			"Live reconnect failed. The saved session was kept so you can try again.";

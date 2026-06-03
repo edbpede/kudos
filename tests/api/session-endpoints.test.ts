@@ -120,6 +120,51 @@ describe("session endpoints", () => {
 		expect(totalFor(acceptedBody.displayState, studentId)).toBe(1);
 	});
 
+	test("display endpoint allows read-only teacher reconnect without leaking tokens", async () => {
+		const createResponse = await createPost(
+			context(
+				jsonRequest("http://localhost/api/session/create", {
+					template: createDefaultTemplate(),
+				}),
+				"http://localhost/api/session/create",
+			),
+		);
+		const created = await createResponse.json();
+		const displayApiUrl = `http://localhost/api/session/${created.sessionId}/display`;
+
+		const teacherReconnect = await displayGet(
+			context(
+				new Request(displayApiUrl, {
+					headers: { authorization: `Bearer ${created.teacherToken}` },
+				}),
+				displayApiUrl,
+				{ sessionId: created.sessionId },
+			),
+		);
+		expect(teacherReconnect.status).toBe(200);
+		const reconnectBody = await teacherReconnect.json();
+		expect(reconnectBody.ok).toBe(true);
+		expect(reconnectBody.displayState.className).toBe(
+			created.displayState.className,
+		);
+		expect(JSON.stringify(reconnectBody)).not.toContain(created.teacherToken);
+		expect(JSON.stringify(reconnectBody)).not.toContain(created.displayToken);
+
+		const rejectedTeacherHeaders: HeadersInit[] = [
+			{ authorization: `Bearer ${created.displayToken}` },
+			{ "x-teacher-token": created.displayToken },
+		];
+		for (const headers of rejectedTeacherHeaders) {
+			const displayTokenAsTeacher = await displayGet(
+				context(new Request(displayApiUrl, { headers }), displayApiUrl, {
+					sessionId: created.sessionId,
+				}),
+			);
+			expect(displayTokenAsTeacher.status).toBe(401);
+			expect((await displayTokenAsTeacher.json()).code).toBe("UNAUTHORIZED");
+		}
+	});
+
 	test("mutating endpoints reject missing invalid display-only and expired credentials", async () => {
 		const createResponse = await createPost(
 			context(

@@ -28,6 +28,17 @@ describe("live relay", () => {
 		);
 		expect(totalFor(display, studentId)).toBe(1);
 		expect(JSON.stringify(display)).not.toContain(created.teacherToken);
+
+		const teacherRead = await relay.readTeacher(
+			created.sessionId,
+			created.teacherToken,
+		);
+		expect(totalFor(teacherRead, studentId)).toBe(1);
+		expect(JSON.stringify(teacherRead)).not.toContain(created.teacherToken);
+		expect(JSON.stringify(teacherRead)).not.toContain(created.displayToken);
+		await expect(
+			relay.readTeacher(created.sessionId, created.displayToken),
+		).rejects.toThrow("Teacher authorization is required");
 	});
 
 	test("purge removes remote roster state", async () => {
