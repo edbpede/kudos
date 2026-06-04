@@ -609,7 +609,7 @@ const persist = (template = current) => {
 const selectTemplate = (id: string) => {
 	const found = templates.find((template) => template.id === id);
 	if (found) {
-		current = structuredClone(found);
+		current = $state.snapshot(found);
 		exportText = serializeTemplate(current);
 		status = t.statuses.loaded(current.className);
 		goToStep("class-roster");
