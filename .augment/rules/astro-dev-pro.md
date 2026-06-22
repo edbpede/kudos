@@ -1,259 +1,493 @@
 ---
 type: "agent_requested"
-description: "Astro Bun UnoCSS Svelte SolidJS Development Guidelines"
+description: "Astro 7 + Bun + UnoCSS presetWind4 + Svelte 5 + SolidJS coding guidelines"
 ---
+# Astro 7 Islands Stack: Bun, UnoCSS presetWind4, Svelte 5 & SolidJS
 
-# Astro + Bun + UnoCSS + Svelte/Solid Agent Coding Playbook
+This stack treats **Astro 7** as the application shell: a content-first, zero-JS-by-default host that renders almost everything to static HTML and ships JavaScript only for the components you explicitly mark as interactive. **Svelte 5** and **SolidJS** are first-class *island* integrations inside Astro (via `@astrojs/svelte` and `@astrojs/solid-js`) — you reach for them for the interactive pockets of a page, not as standalone app frameworks. **Bun** is the runtime, package manager, and test runner. **UnoCSS with `presetWind4`** is the styling engine, wired once and used uniformly across `.astro`, `.svelte`, and Solid `.tsx` files. Optimize for: shipping the least JavaScript possible, keeping islands small and isolated, and choosing the right hydration directive for each interactive region. (The "component island" pattern was coined by Etsy's Katie Sylor-Miller in 2019 and popularized by Preact creator Jason Miller in 2020 — Astro is its most complete implementation.)
 
-## Agent Operating Contract
+The biggest way agents write wrong-but-plausible code here is by importing habits from adjacent ecosystems. The four most common mistakes: (1) reaching for React Context / a global Redux store to share state between islands — islands hydrate independently and share no common parent tree, so you use **nanostores**; (2) writing Svelte 4 idioms (`export let`, `$:`, writable stores) instead of **Svelte 5 runes** (Svelte 5 shipped stable in October 2024 as a ground-up rewrite built around runes); (3) writing Solid as if it were React — destructuring props, `useState`-style thinking, dependency arrays, fetching in effects — when Solid components run **once** and reactivity is fine-grained; and (4) configuring `presetUno`/`presetWind3` (the older default) instead of **`presetWind4`**, or installing a separate CSS reset that presetWind4 already bundles.
 
-This playbook is implementation guidance for AI coding agents working in an Astro project that uses Bun, UnoCSS with `presetWind4`, and Astro integrations for Svelte and Solid.
+## Stack snapshot
 
-When creating code:
+- **Research date:** June 22, 2026
+- **Research basis:** current official docs, release notes, specifications, changelogs, and primary repositories.
 
-- Use the defaults and decision rules here before inventing structure.
-- Prefer Astro-native routing, rendering, and data flow.
-- Add the smallest complete implementation that fits the task.
+| Package | Version | Notes |
+| --- | --- | --- |
+| `astro` | 7.0.0 | Released June 22, 2026. Rust compiler + Vite 8 + Sätteri Markdown. |
+| `vite` | 8.x | Rolldown bundler; pulled in by Astro 7. |
+| `@astrojs/svelte` | 8.x stable (9.0 alpha tracks Astro 7) | Svelte island integration. |
+| `@astrojs/solid-js` | 6.x | Solid island integration. |
+| `svelte` | 5.x | Runes are the idiom; `$:`/stores are legacy. |
+| `solid-js` | 1.9.x stable (2.0 in beta) | Fine-grained signals. |
+| `unocss` / `@unocss/preset-wind4` | 66.x | presetWind4 is Tailwind v4-compatible. |
+| `bun` | 1.3.x | Runtime + package manager + test runner. No 2.0 released. |
+| `nanostores` | 1.x | Cross-island shared state (~286-byte core, zero dependencies). |
 
-When modifying code:
+## Project scaffolding & Bun commands
 
-- Preserve runtime behaviour unless asked to change it.
-- Follow nearby repository conventions unless they conflict with a Reject item.
-- Improve only nearby touched code toward this playbook.
-- Do not perform broad unrelated rewrites.
+Create and run projects with Bun. Astro officially supports Bun but notes rough edges with some integrations, so pin to `bun` as the package manager and use `bun --bun` for the runtime only when you've verified it.
 
-When refactoring:
+```bash
+# Scaffold
+bun create astro@latest my-app
 
-- Identify the stale or rejected pattern first.
-- Take the smallest safe migration step.
-- Keep the diff reviewable.
-- Surface broad migrations instead of silently performing them.
+# Add island integrations and styling (writes astro.config + tsconfig)
+bunx astro add svelte solid
+bun add -D unocss @unocss/preset-wind4 @unocss/reset
+bun add nanostores @nanostores/persistent
 
-When reviewing:
+# Dev / build / preview
+bun run dev          # runs `astro dev` on Node by default
+bunx --bun astro dev # runs the dev server on the Bun runtime (verify integrations first)
+bun run build
+bun run preview
 
-- Check routing, hydration, framework boundaries, UnoCSS extraction safety, security-sensitive rendering, and verification commands.
-- Reject adjacent-ecosystem drift.
-
-When uncertain:
-
-- Prefer conservative stable defaults.
-- Do not invent APIs, commands, or migrations.
-
-## Stack Snapshot & Defaults
-
-- **Research date:** 2026-05-07
-- **Research basis:** Current official docs, release notes, migration guides, specifications, changelogs, and primary repositories.
-
-- **Astro is the application shell and default composition layer.** Treat `.astro` files as the place for routes, layouts, server-side data loading, framework composition, and hydration decisions. Astro uses file-based routing, standard `<a>` navigation instead of a framework `<Link>`, server-first rendering for framework components, and explicit `client:*` directives for hydration. citeturn7view5turn7view1turn9view0turn36search22
-
-- **Use Astro 6-era defaults and official integrations.** Current docs include the Astro 6 upgrade guide and Astro 6 configuration features such as `security.csp`; official integration docs are aligned to the same major line. citeturn6search9turn11view5turn14view4
-
-- **Bun is the default package manager and task runner for this stack, but not an excuse to ignore repository scripts.** `bun create astro`, `bun install`, `bun run <script>`, and `bunx` are supported. Bun can run Astro with `bunx --bun`, but Astro’s own Bun recipe still warns that some integrations may show rough edges, so use repository scripts as the source of truth for CI and local verification. citeturn35search1turn34search5turn35search3turn36search1
-
-- **UnoCSS is explicit, not implicit.** Astro’s UnoCSS integration does not ship with a default preset; add `presetWind4()` in `uno.config.ts`. UnoCSS is build-time extraction-based, so only statically discoverable utilities are generated unless you safelist or explicitly include additional sources. `client:only` Astro framework components also need to live in `src/components` or be added to UnoCSS content scanning. citeturn29view0turn29view1turn29view2
-
-- **`presetWind4` is the right Uno preset for Tailwind-v4-style utilities in this stack.** It is the Tailwind 4-compatible preset, its reset is integrated behind `preflights.reset`, and its theme CSS variable generation is on-demand by default. Do not bolt on extra reset packages just because older Uno or Tailwind examples did. citeturn29view3turn30view0turn30view1turn30view2
-
-- **New Svelte code should target Svelte 5 syntax.** Svelte 5 keeps old syntax working for migration, but current defaults are runes, `$props`, callback props instead of `createEventDispatcher`, snippets instead of slots for component composition, and `$effect` / `$effect.pre` instead of `beforeUpdate` / `afterUpdate`. Stores remain useful, but mainly for complex asynchronous streams or cases needing explicit subscription semantics. citeturn17view0turn19view0turn17view3turn17view5turn17view1
-
-- **Solid is a first-class Astro island option, but use Solid on Solid’s terms.** Solid components do not re-run on every state change; reactivity is signal-based and fine-grained. Use `createSignal` for state, `createMemo` for derived values, `createEffect` for side effects only, and `splitProps` / `mergeProps` instead of React-style prop destructuring. Astro’s Solid integration also automatically wraps async and hydrating components in top-level suspense boundaries. citeturn27search5turn24search0turn24search1turn24search2turn22search0turn20search1turn20search10turn14view1
-
-- **Keep shadcn usage conditional in this stack.** Official `shadcn/ui` Astro installation expects React integration plus Tailwind, while `shadcn-svelte` is an unofficial community port built with Bits UI and Tailwind CSS, and its Astro installation docs also assume Tailwind-oriented setup. In an Astro + UnoCSS + Svelte/Solid project, neither is a default. Use them only when the repository already uses them, or when the task explicitly requires adopting and maintaining their generated component source. citeturn5view0turn5view2turn33search10turn4view6turn33search12
-
-## Decision Matrix
-
-| Scenario | Use | Avoid |
-|---|---|---|
-| Installing dependencies and running scripts | `bun add`, `bun add -d`, `bun install`, `bun run <script>`, and `bunx <bin>` | Switching package managers ad hoc. Only follow npm/pnpm/yarn instead when the repository lockfile, CI, or scripts are clearly authoritative, or a Bun integration issue is already known. citeturn34search5turn35search3turn35search1turn36search1 |
-| New route or page | `src/pages/**` with `.astro` pages by default | Importing SvelteKit or SolidStart routing conventions such as route objects, loaders, or framework `<Link>` components. Astro uses file routes and normal anchors. citeturn7view5turn37view0 |
-| Small client interaction on an otherwise static page | Plain `.astro` markup plus a bundled `<script>` | Spinning up a Svelte or Solid island for trivial DOM behaviour like toggles, copy buttons, or one-off listeners. citeturn11view2turn7view1 |
-| Interactive component or stateful widget | Svelte or Solid component imported into `.astro` and hydrated with the lightest suitable `client:*` directive | Defaulting immediately to `client:load` or `client:only`. Astro server-renders framework components unless you opt out. citeturn7view1turn9view0 |
-| Choosing a hydration directive | `client:load` only for immediately interactive UI; `client:idle` for lower-priority UI; `client:visible` for below-the-fold or heavy widgets; `client:media` for screen-conditional UI; `client:only` only when SSR cannot work or is unwanted | Treating all islands the same, or hiding hydration directives behind spreads or dynamic tags. Hydration directives must be compiler-visible on directly imported framework components. citeturn9view0 |
-| Repeated styling patterns | Uno utilities in markup first; Uno shortcuts for repeated cross-file utility bundles | Runtime class-string concatenation, or broad `@apply`/directive abstractions for patterns that are clearer inline. citeturn31view2turn32search18turn32search20 |
-| Dynamic visual variants | Static class maps in scanned files; `safelist` only for known finite generated sets | Template-string utility generation like `` `bg-${tone}-500` ``. UnoCSS cannot infer runtime combinations. citeturn31view2turn29view2 |
-| Same-app server mutations | Astro Actions | Bespoke internal API endpoints for ordinary app mutations. Use endpoints instead for public URLs, webhooks, non-action consumers, or response shapes that do not fit Actions. citeturn12view0turn7view3 |
-| Svelte composition | Svelte 5 runes, callback props, snippets | New `export let`, `createEventDispatcher`, implicit slot APIs, or `beforeUpdate` / `afterUpdate` in new code. citeturn19view0turn17view3turn17view5 |
-| Solid composition | Signals, memos, control-flow components, reactive prop helpers | React mental models such as prop destructuring, derived state in effects, or treating component bodies as re-running renders. citeturn22search0turn24search1turn27search5turn26search0turn25search0 |
-| shadcn in this stack | Conditional: only if the repo already uses `shadcn/ui` or `shadcn-svelte`, or the task explicitly requests adopting them | Introducing shadcn by default into an Astro + UnoCSS Svelte/Solid codebase. The official install paths assume Tailwind-led setup, and `shadcn/ui` Astro also assumes React. citeturn5view2turn4view6turn33search10 |
-
-## Implementation Guidelines
-
-### Project Structure & Interop Boundaries
-
-### Use `.astro` as the framework boundary
-
-**Default:** Compose routes, layouts, and mixed-framework pages in `.astro`. Astro can import and render multiple frameworks on the same page, but only `.astro` files should be the cross-framework seam.
-
-```ts
-// astro.config.ts
-import { defineConfig } from "astro/config";
-import UnoCSS from "unocss/astro";
-import svelte from "@astrojs/svelte";
-import solid from "@astrojs/solid-js";
-
-export default defineConfig({
-  integrations: [UnoCSS(), svelte(), solid()],
-});
+# Dependency management
+bun add <pkg>            # adds + updates bun.lock
+bun add -D <pkg>         # dev dependency
+bun install --frozen-lockfile   # CI: fail if lockfile would change (npm ci equivalent)
+bun test                 # built-in Jest-compatible runner
 ```
 
-```ts
-// uno.config.ts
-import { defineConfig, presetWind4 } from "unocss";
+Critical insight: `bun run dev` invokes Astro's CLI under **Node** by default. Adding `--bun` (`bunx --bun astro dev`) switches the dev server to the Bun runtime, which is faster but historically surfaced bugs (e.g. endpoint `Content-Type` being served as `application/octet-stream` and triggering a download). For day-to-day Astro work, run the toolchain on Node and use Bun for install/test/scripts unless you've explicitly validated the Bun runtime path.
+
+### `package.json`
+
+```json
+{
+  "name": "my-app",
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro check && astro build",
+    "preview": "astro preview",
+    "astro": "astro",
+    "test": "bun test"
+  }
+}
+```
+
+### `bunfig.toml`
+
+```toml
+# Package manager
+[install]
+exact = true
+peer = true
+
+[install.cache]
+dir = "~/.bun/install/cache"
+
+# Test runner
+[test]
+preload = ["./test/setup.ts"]
+coverage = true
+coverageReporter = ["text", "lcov"]
+coverageThreshold = { line = 0.8, function = 0.8 }
+```
+
+Bun writes a text-based `bun.lock` (commit it). Use `bun install --frozen-lockfile` in CI. Bun is Node-compatible for the vast majority of npm packages; the real exceptions are packages with native C++ addons — historically Astro's default `sharp`-based image service has been a friction point on the Bun runtime, so prefer running image-processing builds on Node.
+
+### Bun vs Node behavioral notes
+
+| Concern | Behavior |
+| --- | --- |
+| Astro CLI runtime | Node by default; Bun only with `--bun`. |
+| Lockfile | `bun.lock` (text) — commit it; `--frozen-lockfile` in CI. |
+| Test runner | `bun test` uses `bun:test`, a Jest-compatible API (`describe`/`test`/`expect`). |
+| Native addons (`sharp`) | Can break on the Bun runtime; build images on Node. |
+| TypeScript | Bun runs `.ts`/`.tsx` directly, no transpile step for scripts. |
+
+## What Astro 7 changed (current behavior)
+
+Astro 7 is a performance-focused major release. Version-anchor these when you rely on them:
+
+- **Rust compiler (Astro 7.0, now default).** The `.astro` compiler was rewritten from Go to Rust. It is stricter: it no longer auto-corrects invalid HTML, **unclosed tags and unterminated attributes are now errors**, and whitespace between elements is collapsed using JSX rules. If you need a literal space between two inline elements, insert it explicitly: `<span>Hello</span>{' '}<span>World</span>`.
+- **Vite 8 + Rolldown (Astro 7.0).** Builds use the Rust-based Rolldown bundler. Most projects need no config changes; custom Vite plugins generally keep working via the Rollup-compatible plugin API.
+- **Sätteri Markdown (Astro 7.0).** The default Markdown/MDX pipeline is now the Rust-powered Sätteri, with GFM, smart punctuation, heading IDs, container directives, and math built in. If you depend on specific remark/rehype plugins, opt back into the unified pipeline via `@astrojs/markdown-remark`.
+- **Route caching is stable (Astro 7.0).** Set caching directives on routes; move `cache`/`routeRules` out of the old `experimental` block.
+- **Advanced Routing (Astro 7.0).** A `src/fetch.ts` entrypoint gives full control over the request pipeline (compose Astro features as middleware). If you already have a `src/fetch.ts` for another purpose, rename it or configure `fetchFile`.
+- **Queued/streaming rendering is the default (stable).** The old `experimental.queuedRendering` flag no longer exists.
+- **AI agent support (Astro 7.0).** `astro dev` auto-detects coding agents and runs in the background with structured JSON logs; opt out with `ASTRO_DEV_BACKGROUND=0`.
+
+## `astro.config.mjs` — wiring islands + UnoCSS
+
+This is the spine of the project. UnoCSS is added as an Astro integration; Svelte and Solid are added as island integrations. Because both Svelte (no JSX) and Solid (JSX) coexist, the Solid integration's `include` scoping matters.
+
+```js
+// astro.config.mjs
+import { defineConfig } from 'astro/config';
+import svelte from '@astrojs/svelte';
+import solid from '@astrojs/solid-js';
+import UnoCSS from '@unocss/astro';
 
 export default defineConfig({
-  presets: [
-    presetWind4({
-      preflights: {
-        reset: true,
-      },
-    }),
+  integrations: [
+    UnoCSS({ injectReset: true }), // presetWind4 bundles its own reset; injectReset wires it
+    svelte(),
+    // Scope Solid to a folder so its JSX transform never fights another JSX framework
+    solid({ include: ['**/solid/**'], devtools: true }),
   ],
 });
 ```
 
-```js
-// svelte.config.js
-import { vitePreprocess } from "@astrojs/svelte";
+Notes that change decisions:
+- `UnoCSS({ injectReset: true })` injects the browser reset. With `presetWind4` the reset is aligned with Tailwind v4 and bundled in the preset, so you do **not** install or import `normalize.css` separately.
+- `solid({ include: [...] })` is **required** the moment you have more than one JSX framework (e.g. Solid + React). With only Solid present it's optional, but scoping Solid components to a `solid/` folder is the cleanest way to keep the per-file JSX transform unambiguous.
+- For `client:only` Solid/Svelte components, keep them under your components folder (or add them to UnoCSS's `content` config) so UnoCSS can scan their class usage.
 
-export default {
-  preprocess: vitePreprocess(),
-};
+## `uno.config.ts` — presetWind4
+
+`presetWind4` is the current Tailwind v4-compatible preset. Use it instead of the older `presetUno`/`presetWind3`. Key behavioral differences: it bundles its own reset (no `@unocss/reset` needed when `reset: true`), it emits `theme` and `properties`/`cssvar-property` layers using `@property` for smaller output, it uses the `oklch` color model (and is therefore **incompatible with `presetLegacyCompat`**), and `presetRemToPx` is built in (don't import it separately).
+
+```ts
+// uno.config.ts
+import { defineConfig, presetWind4, presetTypography, presetIcons } from 'unocss';
+import extractorSvelte from '@unocss/extractor-svelte';
+import transformerDirectives from '@unocss/transformer-directives';
+import transformerVariantGroup from '@unocss/transformer-variant-group';
+
+export default defineConfig({
+  presets: [
+    presetWind4({ reset: true }), // bundled reset; aligns with Tailwind v4
+    presetTypography(),           // adds `prose`
+    presetIcons({ scale: 1.2 }),  // pure-CSS icons, e.g. `i-carbon-search`
+  ],
+  // Required so `class:foo={cond}` directives in .svelte files are extracted
+  extractors: [extractorSvelte()],
+  transformers: [
+    transformerDirectives(),    // enables @apply / --at-apply in CSS & <style>
+    transformerVariantGroup(),  // enables `hover:(bg-red text-white)`
+  ],
+  shortcuts: {
+    'btn': 'px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 transition-colors',
+  },
+  theme: {
+    // presetWind4 renamed `breakpoints` handling; set screens here
+    breakpoints: { sm: '640px', md: '768px', lg: '1024px' },
+  },
+});
 ```
 
+The exact same utility classes (`flex`, `gap-4`, `text-blue-600`, `dark:bg-slate-900`) work in `.astro`, `.svelte`, and Solid `.tsx` files because UnoCSS scans the source text. Two integration-specific rules:
+- **Svelte:** add `extractorSvelte()` so class names used via the `class:` directive (`class:active={isActive}`) are picked up. Without it, only static `class="..."` strings are extracted.
+- **Solid:** Solid uses `class` (not `className`) and supports a reactive `classList={{ active: isActive() }}` — both are scanned as plain text, so no extra extractor is required.
+
+## `tsconfig.json` — strict preset + JSX coexistence
+
+Extend Astro's `strict` (or `strictest`) preset. The subtle issue on this stack: **Svelte components carry no JSX, but Solid components do**, and Solid's JSX transform (`jsxImportSource: "solid-js"`) is incompatible with React's. Set Solid as the global JSX source and scope it; Svelte's compiler handles `.svelte` files independently of these settings.
+
 ```json
-// tsconfig.json
 {
   "extends": "astro/tsconfigs/strict",
   "include": [".astro/types.d.ts", "**/*"],
   "exclude": ["dist"],
   "compilerOptions": {
     "jsx": "preserve",
-    "jsxImportSource": "solid-js"
+    "jsxImportSource": "solid-js",
+    "verbatimModuleSyntax": true
   }
 }
 ```
 
-**Reject:** Do not nest Solid inside Svelte or Svelte inside Solid directly. Do not port SvelteKit or SolidStart app-structure assumptions into Astro.
+If you ever add a second JSX framework (React/Preact), do **not** rely on a single global `jsxImportSource`. Instead use per-folder `references`/`overrides` or a file-level pragma comment (`/** @jsxImportSource solid-js */`) at the top of the conflicting files, and scope each framework integration with `include` in `astro.config.mjs`. Keeping Solid components in a `src/components/solid/` folder makes this trivial. Use `astro check` for type-checking `.astro` files; `.svelte` files are checked by `svelte-check`.
 
-**Existing code:** If the repository already mixes frameworks incorrectly, do not redesign the whole component tree. Move new cross-framework composition into `.astro` and contain further spread there. citeturn7view1turn14view0turn15view0turn29view0turn30view0
+## `.astro` components vs framework islands
 
-### Use Astro-native routing, not adjacent-framework routing
-
-**Default:** Add pages and endpoints under `src/pages/**`. Use plain anchor tags for navigation.
+The default unit is the `.astro` component: HTML-first, runs only on the server/at build time, ships **zero** JavaScript, and can freely mix imported framework components. Reach for a Svelte or Solid island only where you need client interactivity or browser APIs.
 
 ```astro
 ---
-// src/pages/account/settings.astro
-import SettingsPanel from "../../components/account/SettingsPanel.svelte";
+// src/components/ProductCard.astro — zero JS, renders to static HTML
+interface Props { name: string; price: number; }
+const { name, price } = Astro.props;
 ---
-
-<h1>Settings</h1>
-<p><a href="/account/">Back to account</a></p>
-<SettingsPanel client:idle />
+<article class="rounded border p-4 flex flex-col gap-2">
+  <h3 class="text-lg font-semibold">{name}</h3>
+  <p class="text-slate-600">${price.toFixed(2)}</p>
+  <slot />
+</article>
 ```
 
-**Reject:** Do not create route objects, loader files, framework `<Link>` components, or parallel app/router structures.
+| Use this | When |
+| --- | --- |
+| `.astro` component | Static content, layout, anything without client state. Default choice. |
+| **Svelte island** | Interactive widget; you want compiled output, scoped styles, `bind:`, form-heavy UI. |
+| **Solid island** | Interactive widget needing fine-grained reactivity / high-frequency updates with minimal re-render. |
+| `client:only` island | Component depends entirely on browser APIs and can't be server-rendered. |
 
-**Existing code:** Preserve current URLs. If a touched area still mirrors another meta-framework, migrate only the local route/component pair you are editing. citeturn7view5turn37view0
+Only `.astro` files can contain components from multiple frameworks. You **cannot** import a `.astro` component inside a `.svelte` or `.tsx` file — pass static Astro-rendered content into a framework island via a `<slot>` / named slots instead.
 
-### Prefer server rendering first, then add hydration deliberately
+## Hydration directives
 
-**Default:** Framework components render as static HTML unless a `client:*` directive is present. Choose hydration based on urgency, not habit.
+Astro components are static by default. Add a `client:*` directive to a framework component to hydrate it. The directive is a performance contract — choose the laziest one that still feels instant for that UI.
 
 ```astro
 ---
-// src/pages/products.astro
-import ProductFilters from "../components/products/ProductFilters.svelte";
-import CompareDrawer from "../components/products/CompareDrawer.tsx";
+import Search from '../components/svelte/Search.svelte';
+import Carousel from '../components/solid/Carousel.tsx';
+import Chart from '../components/solid/Chart.tsx';
+import SidebarToggle from '../components/svelte/SidebarToggle.svelte';
+import MapWidget from '../components/solid/MapWidget.tsx';
 ---
-
-<ProductFilters client:idle />
-<CompareDrawer client:visible={{ rootMargin: "200px" }} />
+<Search client:load />                          {/* interactive immediately */}
+<Carousel client:idle />                         {/* after main thread is free */}
+<Chart client:visible />                          {/* when scrolled into view */}
+<SidebarToggle client:media="(max-width: 50em)" />{/* when media query matches */}
+<MapWidget client:only="solid" />                 {/* never SSR'd; client renders only */}
 ```
 
-Use this default order:
+| Directive | Hydrates | Use for |
+| --- | --- | --- |
+| `client:load` | Immediately on page load | Above-the-fold, critical interactivity (nav, primary search). |
+| `client:idle` | When the browser is idle | Secondary widgets (newsletter signup). |
+| `client:visible` | When it enters the viewport | Below-the-fold charts, carousels, infinite-scroll triggers. |
+| `client:media={query}` | When a CSS media query matches | Responsive-only UI (mobile sidebar toggle). |
+| `client:only={framework}` | Client only — **skips SSR** | Components needing browser-only APIs (maps, editors). Must name the framework: `"svelte"` / `"solid"`. |
 
-- `client:load` for immediately interactive, above-the-fold UI.
-- `client:idle` for lower-priority controls.
-- `client:visible` for below-the-fold or heavy widgets.
-- `client:media` when interactivity is truly viewport-condition-dependent.
-- `client:only` only when SSR is incompatible or actively undesirable.
+Critical insight: `client:only` must name the framework because Astro never runs the component on the server and otherwise can't know which renderer to load. It also ships no fallback HTML — provide `slot="fallback"` content if the loading gap matters. Anti-pattern: defaulting everything to `client:load` because it "just works." Prefer `client:visible`/`client:idle` for anything non-critical, and never spawn one island per item when mapping a large array — render the list statically and hydrate a single controller island.
 
-**Reject:** Do not default to `client:only`. It skips server HTML and behaves like immediate client rendering.
+### Props across the island boundary (serialization limits)
 
-**Existing code:** If touched code uses `client:load` everywhere, only downgrade the specific island you are editing when the interaction timing is obviously lower priority. citeturn7view1turn9view0
-
-### Prefer plain Astro scripts for tiny behaviour
-
-**Default:** If the page is mostly static and the interaction is DOM-local, use a standard Astro `<script>` before introducing an island.
+Props passed to a hydrated island are **serialized**. Per Astro's docs, the supported types are: "plain object, number, string, Array, Map, Set, RegExp, Date, BigInt, URL, Uint8Array, Uint16Array, Uint32Array, and Infinity." Crucially, "Non-supported data structures passed to components, such as functions, can only be used during the component's server rendering and cannot be used to provide interactivity" — so you **cannot pass a function as a prop to a hydrated island**. Astro's docs are also explicit that "Passing React's 'render props' to framework components from an Astro component will not work, because Astro components can't provide the client runtime behavior that this pattern requires. Instead, use named slots." For cross-island communication, use nanostores.
 
 ```astro
-<!-- src/components/CopyCodeButton.astro -->
-<button type="button" data-copy-code class="rounded px-3 py-2 text-sm">
-  Copy
-</button>
+---
+import Counter from '../components/svelte/Counter.svelte';
+---
+<!-- ✅ serializable props -->
+<Counter client:load start={5} label="Votes" tags={new Set(['a', 'b'])} />
+<!-- ❌ functions are dropped on the client: <Counter onTick={() => ...} /> -->
+```
 
-<script>
-  const buttons = document.querySelectorAll("[data-copy-code]");
+## Svelte 5 runes inside islands
 
-  buttons.forEach((button) => {
-    button.addEventListener("click", async () => {
-      await navigator.clipboard.writeText("copied");
-    });
+Inside `.svelte` islands, use **runes** exclusively. Svelte 4 idioms (`export let`, top-level `let` reactivity, `$:`, and `writable`/`readable` stores for component state) are legacy — do not write them.
+
+```svelte
+<!-- src/components/svelte/Counter.svelte -->
+<script lang="ts">
+  interface Props {
+    start?: number;
+    label?: string;
+    onchange?: (value: number) => void;
+  }
+  let { start = 0, label = 'Count', onchange }: Props = $props();
+
+  let count = $state(start);                 // reactive state
+  let doubled = $derived(count * 2);         // computed; memoized, recalculated lazily
+  let history = $derived.by(() => {          // multi-line derivation
+    return Array.from({ length: count }, (_, i) => i + 1);
   });
+
+  // $effect: side-effects only (DOM, logging, 3rd-party libs) — NOT for syncing state
+  $effect(() => {
+    onchange?.(count);
+  });
+
+  function increment() { count += 1; }
 </script>
+
+<button class="btn" onclick={increment}>{label}: {count}</button>
+<p class="text-slate-500">doubled = {doubled}, steps = {history.length}</p>
 ```
 
-**Reject:** Do not create a Svelte or Solid component just to attach one event listener.
+Rules that separate idiomatic from naive Svelte 5:
+- **`$state`** declares reactive state and deeply proxies objects/arrays. For class fields, mark them `$state` directly. `$state.raw` opts out of deep proxying; `$state.snapshot` takes a detached plain copy.
+- **`$derived`** is for *values*. If your `$effect` body ends in assigning another `$state`, you almost certainly want `$derived` instead. `$derived` is memoized and uses push-pull reactivity (recomputed lazily on read). Derived statements became reassignable in **Svelte 5.25**, enabling optimistic-UI patterns where you temporarily override a derived value before the source of truth catches up.
+- **`$effect`** is for *actions* (side effects), runs after the DOM updates, and tracks dependencies it reads. Don't set state you also read inside the same effect (infinite loop) — use `untrack` if unavoidable. Effects don't run during SSR.
+- **`$props`** replaces `export let`. Destructure with defaults and a typed `interface`. Rename reserved words (`class: klass`). Spread the rest with `...rest`.
+- **`$bindable`** marks a prop the parent may two-way bind. Props are **not** bindable by default in runes mode: `let { value = $bindable('') }: Props = $props();`.
+- Use event attributes (`onclick`), not `on:click`. Use **snippets** + `{@render ...}` instead of slots: content between component tags becomes the `children` snippet.
 
-**Existing code:** If a tiny island already exists and is stable, keep it unless the touched change is already shrinking that area. citeturn11view2turn7view1
+```svelte
+<!-- Snippets replace slots -->
+<script lang="ts">
+  import type { Snippet } from 'svelte';
+  let { header, children }: { header?: Snippet; children: Snippet } = $props();
+</script>
+<section class="flex flex-col gap-2">
+  {#if header}<header>{@render header()}</header>{/if}
+  {@render children()}
+</section>
+```
 
-### Routing, Data Loading & Server Work
+For state shared across multiple `.svelte.ts` modules within Svelte, runes work outside components too (`export const store = $state({...})` in a `.svelte.ts` file). But for sharing state **across islands of different frameworks**, use nanostores (below).
 
-### Fetch in server frontmatter by default
+## SolidJS reactivity inside islands
 
-**Default:** In `.astro` files, fetch data in frontmatter. In static output it runs at build time; in SSR it runs at request time.
+Solid components run **once** at creation. There is no re-render, no virtual DOM, and no dependency arrays. Reactivity is fine-grained: a signal read inside a tracking scope (JSX, `createMemo`, `createEffect`) subscribes to that signal and surgically updates only what changed. This is the single biggest mental shift for agents arriving with React habits.
+
+```tsx
+// src/components/solid/Counter.tsx
+import { createSignal, createMemo, createEffect, onCleanup } from 'solid-js';
+
+interface Props { start?: number; label?: string; }
+
+export default function Counter(props: Props) {
+  // ❌ Do NOT destructure props — it breaks reactivity. Read props.start lazily.
+  const [count, setCount] = createSignal(props.start ?? 0);
+  const doubled = createMemo(() => count() * 2); // cached derived signal
+
+  createEffect(() => {
+    document.title = `${props.label ?? 'Count'}: ${count()}`; // tracks count()
+  });
+
+  const id = setInterval(() => {}, 1000);
+  onCleanup(() => clearInterval(id)); // explicit cleanup
+
+  return (
+    <div class="flex flex-col gap-2">
+      <button class="btn" onClick={() => setCount(count() + 1)}>
+        {props.label ?? 'Count'}: {count()}
+      </button>
+      <p class="text-slate-500">doubled = {doubled()}</p>
+    </div>
+  );
+}
+```
+
+Idioms that matter:
+- **Signals are functions.** Read with `count()`, write with `setCount(v)` or `setCount(c => c + 1)`. Reading in the component body (outside a tracking scope) reads once and never updates.
+- **Never destructure props.** `const { start } = props` breaks reactivity. Read `props.start`, or use `splitProps`/`mergeProps`.
+- **`createMemo`** for derived values used in multiple places or for expensive computations; a plain arrow function recomputes on each call. Solid signals already short-circuit equal values, so you don't need memos everywhere.
+- **`createEffect`** for side effects; pair with `onCleanup`. Don't sync two signals with an effect — derive instead.
+- **`createStore`** (from `solid-js/store`) for nested/complex objects — it gives property-level reactivity and path-based updates `setState('user', 'name', 'Jane')`; signals replace the whole value.
+- **`createResource`** for async data — gives proper loading/error/Suspense integration and avoids the race conditions of fetching in an effect.
+
+```tsx
+// Control flow: use <For>, <Show>, <Switch> — not Array.map or && ternaries
+import { createResource, For, Show } from 'solid-js';
+
+export default function Posts() {
+  const [posts] = createResource(() => fetch('/api/posts').then(r => r.json()));
+  return (
+    <Show when={!posts.loading} fallback={<p>Loading…</p>}>
+      <ul class="flex flex-col gap-1">
+        <For each={posts()}>{(post) => <li class="text-blue-600">{post.title}</li>}</For>
+      </ul>
+    </Show>
+  );
+}
+```
+
+Use `<For each={items()}>` (keyed, DOM-reconciling) instead of `items().map(...)`, and `<Show when={cond()}>` instead of `{cond() && ...}`. These are not stylistic — they let Solid avoid recreating DOM nodes.
+
+## Sharing state between islands (nanostores)
+
+Islands hydrate independently and share no common parent tree, so React Context, a top-level provider, or a global Redux store **cannot** work across them. Astro's recommended solution is **nanostores** — the docs note its stores "ship the bare minimum JS you'll need (less than 1 KB) with zero dependencies" (the core atom is ~286 bytes), and it's framework-agnostic. Define stores once; read/write them from Svelte, Solid, `.astro` `<script>` tags, and vanilla JS alike.
+
+```ts
+// src/stores/cart.ts
+import { atom, map } from 'nanostores';
+
+export const isCartOpen = atom(false);
+export const cartItems = map<Record<string, { id: string; qty: number }>>({});
+
+export function addToCart(id: string) {
+  const items = cartItems.get();
+  const existing = items[id];
+  cartItems.setKey(id, { id, qty: (existing?.qty ?? 0) + 1 });
+  isCartOpen.set(true);
+}
+```
+
+```svelte
+<!-- Svelte island: nanostores work like native Svelte stores via the $ prefix -->
+<script lang="ts">
+  import { isCartOpen, cartItems } from '../../stores/cart';
+  // $isCartOpen and $cartItems auto-subscribe
+</script>
+{#if $isCartOpen}
+  <aside class="fixed right-0 top-0 p-4 bg-white shadow">
+    {Object.keys($cartItems).length} item(s)
+  </aside>
+{/if}
+```
+
+```tsx
+// Solid island: use @nanostores/solid's useStore
+import { useStore } from '@nanostores/solid';
+import { addToCart, cartItems } from '../../stores/cart';
+
+export default function AddButton(props: { id: string }) {
+  const items = useStore(cartItems);
+  return (
+    <button class="btn" onClick={() => addToCart(props.id)}>
+      Add ({Object.keys(items()).length})
+    </button>
+  );
+}
+```
+
+Use the framework-specific helper for reads: `@nanostores/solid` (`useStore`) for Solid, the `$` prefix in Svelte. For persistence across page navigations, use `@nanostores/persistent` (syncs to `localStorage`). Important caveat — Astro's docs spell out the limits: "Writing to a store from a .astro file or non-hydrated component will not affect the value received by client-side components. You cannot pass a Nano Store as a 'prop' to client-side components. You cannot subscribe to store changes from a .astro file, since Astro components do not re-render." Nanostores are **client-side**; using them in server code risks data races between requests. (If you genuinely need per-request server→client store hydration, that's a specialized concern; keep stores client-only by default.)
+
+## Content collections & the Content Layer API
+
+Content collections are Astro's type-safe content system. Define collections with **loaders** (`glob()`/`file()` for local files, custom loaders for remote APIs/CMS) and a Zod schema. The config file is `src/content.config.ts`. The legacy `type: 'content'` declaration is gone — always use a loader.
+
+```ts
+// src/content.config.ts
+import { defineCollection, z } from 'astro:content';
+import { glob } from 'astro/loaders';
+
+const blog = defineCollection({
+  loader: glob({ pattern: '**/*.md', base: './src/content/blog' }),
+  schema: z.object({
+    title: z.string(),
+    description: z.string(),
+    pubDate: z.coerce.date(),
+    tags: z.array(z.string()).default([]),
+    draft: z.boolean().default(false),
+  }),
+});
+
+export const collections = { blog };
+```
 
 ```astro
 ---
-// src/pages/team.astro
-const response = await fetch("https://example.com/api/team");
-const team = await response.json();
----
+// src/pages/blog/[...slug].astro
+import { getCollection, render } from 'astro:content';
 
-<ul>
-  {team.members.map((member) => <li>{member.name}</li>)}
-</ul>
+export async function getStaticPaths() {
+  const posts = await getCollection('blog', ({ data }) => !data.draft);
+  // glob loader entries are keyed by `id` (the slug) — NOT `.slug`
+  return posts.map((post) => ({ params: { slug: post.id }, props: { post } }));
+}
+
+const { post } = Astro.props;
+const { Content } = await render(post);
+---
+<article class="prose mx-auto">
+  <h1>{post.data.title}</h1>
+  <Content />
+</article>
 ```
 
-Pass fetched data down as props instead of re-fetching immediately in the island.
+Critical detail: with the Content Layer API, entries are identified by `entry.id` (slugified), not `entry.slug`. Run `astro sync` (or restart dev) after changing a schema to regenerate types. Use content collections for relatively static, build-time content; for per-user/real-time data use on-demand rendering or live collections.
 
-**Reject:** Do not fetch the same data again in a client island unless the feature genuinely needs client-side refresh or live updates.
+## Actions & server endpoints
 
-**Existing code:** When touching a page that fetches on both server and client for the initial render, remove only the redundant local fetch path. citeturn7view4
-
-### Use Astro Actions for app-internal mutations
-
-**Default:** Use Actions for form posts and app-internal client-to-server mutations that benefit from type-safe input validation and shared calling conventions.
+For client↔server communication prefer **Astro Actions** over hand-rolled API routes: actions give type-safe, Zod-validated RPC with no manual `fetch`, plus `ActionError` for standardized errors and progressive enhancement for forms.
 
 ```ts
 // src/actions/index.ts
-import { defineAction, ActionError } from "astro:actions";
-import { z } from "astro/zod";
+import { defineAction, ActionError } from 'astro:actions';
+import { z } from 'astro:schema';
 
 export const server = {
   newsletter: defineAction({
-    accept: "form",
-    input: z.object({
-      email: z.string().email(),
-    }),
-    handler: async ({ email }, context) => {
-      if (!context.locals.user) {
-        throw new ActionError({ code: "UNAUTHORIZED" });
+    accept: 'form',                       // or 'json' (default)
+    input: z.object({ email: z.string().email() }),
+    handler: async ({ email }, ctx) => {
+      if (!ctx.cookies.has('session')) {
+        throw new ActionError({ code: 'UNAUTHORIZED', message: 'Sign in first.' });
       }
-
-      // persist subscription here
-      return { ok: true, email };
+      // ...persist subscription
+      return { ok: true };
     },
   }),
 };
@@ -261,489 +495,112 @@ export const server = {
 
 ```astro
 ---
-// src/pages/newsletter.astro
-export const prerender = false;
-import { actions } from "astro:actions";
+// Call from an island or a <script>; from a form, use getActionResult on the server
 ---
-
-<form method="POST" action={actions.newsletter}>
-  <label for="email">Email</label>
-  <input id="email" name="email" type="email" required />
-  <button type="submit">Subscribe</button>
-</form>
+<script>
+  import { actions } from 'astro:actions';
+  const form = document.querySelector('form')!;
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const { data, error } = await actions.newsletter(new FormData(form));
+    if (error) console.error(error.code, error.message);
+    else console.log(data.ok);
+  });
+</script>
 ```
 
-**Conditional:** Form `action={actions.someAction}` requires on-demand rendering for that page. If the page must remain fully static, call the action from a client script or island instead.
-
-**Security:** Actions are public endpoints under `/_actions/...`; authorise them like API routes. Put permission checks in each action handler, and gate globally in middleware only when that policy is truly shared.
-
-**Reject:** Do not create an internal `fetch("/api/...")` endpoint just to move typed form data from your own UI to your own server.
-
-**Existing code:** If the repository already uses endpoints for internal mutations, keep them unless the touched flow benefits materially from a local Action migration. citeturn12view0turn12view3turn12view4turn13view2turn13view0turn13view1
-
-### Use endpoints for public HTTP or non-Action shapes
-
-**Default:** Use endpoints in `src/pages/**` when you need a URL-addressable resource, webhook target, generated asset, feed, or API response shape meant for non-Astro consumers.
+Use plain **endpoints** when you're serving non-RPC data (JSON APIs, RSS, sitemaps, dynamic files). An endpoint is a `.ts` file in `src/pages/` exporting HTTP-method functions using Web-standard `Request`/`Response`:
 
 ```ts
-// src/pages/api/health.json.ts
-import type { APIRoute } from "astro";
+// src/pages/api/products/[id].ts
+import type { APIRoute } from 'astro';
 
-export const GET: APIRoute = async () => {
-  return new Response(JSON.stringify({ ok: true }), {
-    headers: { "Content-Type": "application/json" },
-  });
+export const prerender = false; // on-demand (SSR) for this route
+
+export const GET: APIRoute = async ({ params }) => {
+  const product = await getProduct(params.id);
+  if (!product) return new Response(JSON.stringify({ error: 'Not found' }), { status: 404 });
+  return Response.json(product);
 };
 ```
 
-**Conditional:** In static output, endpoints build static files; in SSR they execute on request. Use an adapter when you need on-demand behaviour.
+In static output you must `export const prerender = false` to make an endpoint render on demand; in server output that's the default. There are no Express-style `req`/`res` objects — only the Fetch API.
 
-**Existing code:** Keep existing stable endpoints for public consumers. Do not force Actions where URLs are part of the contract. citeturn7view3turn11view4
+## Server vs client boundary
 
-### Use server islands only when partial deferral really helps
+| Runs on server / at build | Runs on client |
+| --- | --- |
+| `.astro` frontmatter (the `---` block) | Code inside hydrated islands (`client:*`) |
+| `.astro` component templates (→ static HTML) | `<script>` tags in `.astro` (browser global scope) |
+| Endpoints / actions handlers | nanostores reads/writes |
+| Content collection loaders & queries | Svelte `$effect` / Solid `createEffect` |
 
-**Default:** Reach for `server:defer` only when a personalised or slow server fragment should not block the rest of the page.
+A non-hydrated framework component renders to static HTML only — its event handlers and reactivity do nothing until you add a `client:*` directive. Secrets and DB calls belong in frontmatter, endpoints, and action handlers — never in island code, which ships to the browser.
+
+## Styling across all three component types
+
+UnoCSS scans source text, so the same presetWind4 utilities work everywhere. Concrete patterns:
 
 ```astro
----
-// src/pages/dashboard.astro
-import PersonalFeed from "../components/dashboard/PersonalFeed.astro";
----
-
-<PersonalFeed server:defer>
-  <div slot="fallback">Loading feed…</div>
-</PersonalFeed>
+<!-- .astro: utilities + variant groups (via transformerVariantGroup) -->
+<nav class="flex items-center gap-4 p-4 hover:(bg-slate-50 shadow)">
+  <a href="/" class="i-carbon-home text-xl" aria-label="Home"></a>
+</nav>
 ```
-
-**Conditional:** `server:defer` needs an adapter and therefore an on-demand server environment.
-
-**Reject:** Do not introduce server islands into otherwise simple static pages without a clear latency or personalisation reason.
-
-**Existing code:** If the repository is fully static, surface the adapter requirement instead of silently converting the app to SSR. citeturn11view3turn11view4turn9view0
-
-### Svelte Rules for New Code
-
-### Use Svelte 5 syntax for new and heavily touched Svelte components
-
-**Default:** New Svelte components should use runes syntax and callback props.
 
 ```svelte
-<!-- src/components/forms/ToggleField.svelte -->
+<!-- .svelte: class: directive needs extractorSvelte; @apply needs transformerDirectives -->
 <script lang="ts">
-  let pressed = $state(false);
-
-  let {
-    label,
-    ontoggle,
-  }: {
-    label: string;
-    ontoggle?: (next: boolean) => void;
-  } = $props();
+  let { active = false }: { active?: boolean } = $props();
 </script>
-
-<button
-  type="button"
-  aria-pressed={pressed}
-  class="inline-flex items-center gap-2 rounded px-3 py-2"
-  onclick={() => {
-    pressed = !pressed;
-    ontoggle?.(pressed);
-  }}
->
-  <span>{label}</span>
-  <span>{pressed ? "On" : "Off"}</span>
-</button>
+<button class="btn" class:opacity-50={!active}>Toggle</button>
+<style>
+  /* @apply works because transformerDirectives is enabled */
+  .card { --at-apply: rounded border p-4 bg-white; }
+</style>
 ```
-
-**Reject:** Do not write new Svelte 4-style `export let`, `on:click`, or `createEventDispatcher` patterns in fresh components.
-
-**Existing code:** Svelte 5 still supports old syntax. Do not mass-convert untouched components. Migrate the touched component only when the edit already changes its interface or internal state logic. citeturn17view0turn19view0
-
-### Use snippets for new reusable content APIs
-
-**Default:** For new Svelte wrapper components, prefer snippet props and `{@render ...}` over slot-based internal APIs.
-
-**Reject:** Do not design new library-like Svelte components around named slots if you are already writing Svelte 5 code.
-
-**Existing code:** Existing slot-based components can stay until touched. When you touch them, migrate only the local public surface you are changing. citeturn17view5turn18view2
-
-### Use `$effect` and `$effect.pre`, not deprecated update hooks
-
-**Default:** Use `$effect` for post-update reactive side effects and `$effect.pre` when you need pre-DOM-update work.
-
-**Reject:** Do not introduce `beforeUpdate` or `afterUpdate` in new runes components.
-
-**Existing code:** Leave legacy hooks alone unless that component is already being refactored. citeturn17view3
-
-### Use `$bindable` only when two-way component binding is intentionally part of the API
-
-**Default:** Keep props one-way by default. Mark a prop bindable only when the component is intentionally exposing two-way state.
-
-**Reject:** Do not make routine presentational component props bindable just because it is possible.
-
-**Existing code:** If a component already overuses binding, reduce it only in the touched surface area. citeturn17view4
-
-### Use stores conditionally, not by habit
-
-**Default:** Prefer local rune state and plain props for ordinary component state.
-
-**Conditional:** Use `svelte/store` when you truly need complex asynchronous streams, explicit subscription control, or shared store semantics that fit the existing repository.
-
-**Reject:** Do not introduce stores for small local component state that is clearer as `$state` / `$derived`.
-
-**Existing code:** Keep existing stores if they are stable and widely shared; do not rewrite them merely for style compliance. citeturn17view1
-
-### Solid Rules for New Code
-
-### Write Solid as Solid, not as React with different imports
-
-**Default:** Use signals for state, memos for derived values, props objects for reactive reads, and Solid control-flow components for rendering logic.
 
 ```tsx
-// src/components/counter/Counter.tsx
-import { createMemo, createSignal, mergeProps, splitProps } from "solid-js";
-
-type Props = {
-  initial?: number;
-  class?: string;
-};
-
-export function Counter(rawProps: Props) {
-  const props = mergeProps({ initial: 0 }, rawProps);
-  const [local, buttonProps] = splitProps(props, ["initial", "class"]);
-  const [count, setCount] = createSignal(local.initial);
-  const label = createMemo(() => `Count: ${count()}`);
-
-  return (
-    <button
-      type="button"
-      class={local.class}
-      onClick={() => setCount((n) => n + 1)}
-      {...buttonProps}
-    >
-      {label()}
-    </button>
-  );
+// Solid: use `class` and reactive `classList`
+export default function Tab(props: { active: boolean }) {
+  return <div class="px-3 py-1" classList={{ 'bg-blue-600 text-white': props.active }}>Tab</div>;
 }
 ```
 
-**Reject:** Do not destructure `props` directly in Solid component parameters or at the top of the component when those values need to stay reactive.
+For SvelteKit-style component libraries you might reach for `@unocss/svelte-scoped`, but inside Astro islands the standard global UnoCSS Astro integration is correct — just remember `extractorSvelte()` for `class:` directives.
+
+## Adjacent frameworks: when NOT to reach for them
+
+SvelteKit and SolidStart are full standalone app frameworks with their own routing, server, and data loading. In this stack **Astro owns routing, pages, endpoints, actions, and data loading** — do not introduce SvelteKit's `+page.server.ts`/`load`/form actions or SolidStart's `createAsync`/`"use server"`/file-based routing. Those patterns will not work inside Astro islands and signal that an agent has confused the host framework. Use Astro Actions and endpoints for the server, Astro content collections for data, and Svelte/Solid only for the interactive island UI. (Svelte 5's `$state` in `.svelte.ts` modules and Solid's signals/`createResource` remain valid *inside* islands for client logic.)
+
+## Anti-patterns to avoid
+
+| ❌ Wrong (adjacent-ecosystem habit) | ✅ Right (this stack) |
+| --- | --- |
+| Sharing island state with React Context / Redux / a provider | nanostores atoms/maps, read via `$` (Svelte) or `useStore` (Solid) |
+| Svelte: `export let foo`, `$: doubled = x*2`, `writable()` | Runes: `$props()`, `$derived(x*2)`, `$state()` |
+| Svelte: `$effect(() => { total = a + b })` (syncing state) | `let total = $derived(a + b)` |
+| Solid: `const { count } = props` (destructuring) | Read `props.count`; use `splitProps`/`mergeProps` |
+| Solid: fetching in `createEffect` + `setSignal` | `createResource(fetcher)` with `<Suspense>`/`<Show>` |
+| Solid: `items().map(...)` / `{cond() && <X/>}` | `<For each={items()}>` / `<Show when={cond()}>` |
+| UnoCSS: `presetUno()` / `presetWind3()` + `normalize.css` | `presetWind4({ reset: true })` (bundled reset) |
+| Importing `presetRemToPx` separately | It's built into presetWind4 |
+| Passing a function as a prop to a `client:*` island | Functions don't serialize; use nanostores or named slots |
+| Defaulting every island to `client:load` | `client:visible`/`client:idle` for non-critical UI |
+| Importing a `.astro` component inside `.svelte`/`.tsx` | Pass Astro content in via `<slot>` / named slots |
+| `entry.slug` from content collections | `entry.id` (Content Layer API) |
+| SvelteKit `load`/`+page.server.ts` or SolidStart `"use server"` inside Astro | Astro Actions / endpoints / content collections |
+| Single global `jsxImportSource` with Solid **and** React | Scope each via folder `include` + per-file pragma |
+| Hand-rolled `fetch` + manual validation for forms | `defineAction` with a Zod `input` schema |
+
+## Quick reference
+
+- **Scaffold:** `bun create astro@latest` → `bunx astro add svelte solid` → `bun add -D unocss @unocss/preset-wind4`.
+- **Run toolchain on Node** (`bun run dev`); use `bunx --bun` only when Bun-runtime-verified. Bun for install/test/scripts.
+- **Default to `.astro`** (zero JS). Add an island only for interactivity; pick the laziest `client:*` directive.
+- **Svelte islands:** runes only (`$state`/`$derived`/`$effect`/`$props`/`$bindable`), snippets over slots.
+- **Solid islands:** components run once; signals are functions; never destructure props; `<For>`/`<Show>`; `createResource` for async.
+- **Cross-island state:** nanostores (client-side only).
+- **Styling:** one `uno.config.ts` with `presetWind4`; `extractorSvelte()` + `transformerDirectives()`.
+- **Server work:** Astro Actions (typed RPC) and endpoints (`Request`/`Response`); content collections via loaders + Zod, keyed by `entry.id`.
 
-**Existing code:** If touched code already destructures stale props, fix only the props involved in the edit. citeturn22search0turn20search1turn20search10
-
-### Use `createMemo` for derived state and `createEffect` only for side effects
-
-**Default:** Derived values belong in memos. Effects are for DOM integration, logging, subscriptions, or other side effects.
-
-```tsx
-// src/components/search/FilteredList.tsx
-import { For, createMemo, createSignal } from "solid-js";
-
-const ITEMS = ["Ada", "Grace", "Linus", "Margaret"];
-
-export function FilteredList() {
-  const [query, setQuery] = createSignal("");
-
-  const filtered = createMemo(() =>
-    ITEMS.filter((item) =>
-      item.toLowerCase().includes(query().toLowerCase()),
-    ),
-  );
-
-  return (
-    <>
-      <input
-        value={query()}
-        onInput={(e) => setQuery(e.currentTarget.value)}
-        placeholder="Filter"
-      />
-      <ul>
-        <For each={filtered()}>{(item) => <li>{item}</li>}</For>
-      </ul>
-    </>
-  );
-}
-```
-
-**Reject:** Do not compute derived state by setting another signal inside `createEffect`. Do not put side effects in memos.
-
-**Existing code:** If an effect in a touched file is only deriving state, convert just that local chain to a memo. citeturn24search1turn24search2turn23view0turn22search6
-
-### Use Solid control-flow primitives for reactive lists and conditionals
-
-**Default:** Use `<Show>`, `<Switch>/<Match>`, `<For>`, and `<Index>` rather than treating JSX as React-style re-rendered templates.
-
-- Use `<For>` when list order or length changes.
-- Use `<Index>` when the list shape is stable but item values change frequently.
-- Use `<Show>` for conditional branches, especially when you want lazy branch handling.
-
-**Reject:** Do not default to `array.map()` for dynamic reactive list rendering.
-
-**Existing code:** If `map()` is already stable in a local static case, leave it. Migrate only dynamic touched lists. citeturn26search0turn25search0turn25search1
-
-### Respect Solid’s SSR and hydration timing
-
-**Default:** Assume `createEffect` does not run during SSR and also does not run during initial client hydration. If the initial HTML must include async data, fetch it server-side in Astro or use integration-supported async Solid patterns.
-
-**Conditional:** Astro’s Solid integration already wraps async and hydrating components in top-level suspense boundaries, so you do not need to add a top-level suspense wrapper just to support resources or lazy components.
-
-**Reject:** Do not depend on `createEffect` for server-rendered initial data.
-
-**Existing code:** If a touched Solid island relies on an effect for first-render content, move the initial data path up into Astro or into a proper async Solid pattern. citeturn22search6turn14view1
-
-### UI, Styling & Components
-
-### Keep UnoCSS utility names statically discoverable
-
-**Default:** Use literal utility strings in `.astro`, `.svelte`, `.tsx`, or in explicitly scanned files. Prefer static lookup tables over dynamic string construction.
-
-```ts
-// src/lib/ui/button.ts
-// @unocss-include
-export const buttonClass = {
-  primary:
-    "inline-flex items-center justify-center rounded px-3 py-2 text-sm font-medium bg-primary text-white hover:bg-primary/90",
-  ghost:
-    "inline-flex items-center justify-center rounded px-3 py-2 text-sm font-medium hover:bg-muted",
-} as const;
-
-export type ButtonTone = keyof typeof buttonClass;
-```
-
-```astro
----
-// src/components/ui/Button.astro
-import { buttonClass, type ButtonTone } from "../../lib/ui/button";
-
-interface Props {
-  tone?: ButtonTone;
-  href?: string;
-}
-
-const { tone = "primary", href, ...rest } = Astro.props;
-const classes = buttonClass[tone];
----
-
-{href ? (
-  <a href={href} class={classes} {...rest}><slot /></a>
-) : (
-  <button type="button" class={classes} {...rest}><slot /></button>
-)}
-```
-
-**Reject:** Do not build utilities via template strings such as `` `bg-${tone}-500` `` or `` `md:${size}` `` and assume UnoCSS will find them.
-
-**Existing code:** Replace dynamic class construction in the touched area with static maps first. Use `safelist` only when the set is finite but too awkward to express inline. citeturn31view2turn31view0turn29view2
-
-### Use `class:list` in `.astro` when conditional classes are still static
-
-**Default:** In Astro components, use `class:list` to compose conditional static utility names without falling back to fragile string concatenation.
-
-```astro
----
-const selected = true;
-const disabled = false;
----
-
-<button
-  class:list={[
-    "inline-flex items-center rounded px-3 py-2",
-    selected && "bg-primary text-white",
-    disabled && "pointer-events-none opacity-50",
-  ]}
->
-  Save
-</button>
-```
-
-**Reject:** Do not hand-roll concatenation logic in `.astro` when `class:list` keeps the utilities literal and compiler-visible.
-
-**Existing code:** Convert only the local expression when you are already touching the element. citeturn7view0
-
-### Use Uno shortcuts for repeated utility bundles, not for every one-off class list
-
-**Default:** Keep small component-local styling inline. Introduce Uno `shortcuts` when the same utility cluster repeats across files or forms part of the design language.
-
-```ts
-// uno.config.ts
-import { defineConfig, presetWind4 } from "unocss";
-
-export default defineConfig({
-  presets: [presetWind4({ preflights: { reset: true } })],
-  shortcuts: {
-    "ui-card": "rounded-xl border border-default bg-default p-4 shadow-sm",
-    "ui-input":
-      "w-full rounded border border-default bg-default px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary",
-  },
-});
-```
-
-**Reject:** Do not hiding every utility list behind custom class names. That throws away the main benefit of atomic styling.
-
-**Existing code:** If a repeated bundle already exists as plain utilities, keep it inline until repetition is clearly hurting maintenance. citeturn32search20turn32search15
-
-### Do not stack Tailwind tooling on top of UnoCSS by default
-
-**Default:** For this stack, use `@unocss/astro` plus `presetWind4()` as the utility system.
-
-**Conditional:** If the repository already contains `shadcn/ui` or `shadcn-svelte`, keep its generated source code and adapt only the touched components. Expect Tailwind-oriented global styles, tokens, and installation assumptions.
-
-**Reject:** Do not add Tailwind/PostCSS tooling solely to satisfy shadcn examples when the repository’s styling system is already UnoCSS.
-
-**Existing code:** If a repository already runs both Tailwind and UnoCSS, surface that as technical debt. Do not silently expand the overlap. citeturn29view0turn29view3turn30view1turn5view2turn4view6turn33search10
-
-### Treat shadcn-generated code as project code, not a black box
-
-**Conditional:** If the repository already uses `shadcn-svelte`, edit generated components as normal source files and keep changes local, explicit, and reversible. If it already uses official `shadcn/ui` Astro, remember that path assumes React integration.
-
-**Fallback:** Without existing shadcn adoption, build the needed component directly in Astro, Svelte, or Solid with UnoCSS.
-
-**Reject:** Do not introduce shadcn into a touched change just to get a button, dialog, or form shell.
-
-**Existing code:** Preserve existing import aliases and generated file layout when touching shadcn code; do not regenerate the whole registry unless the task explicitly asks for that migration. citeturn4view6turn5view0turn33search10
-
-### Security & Configuration
-
-### Use `astro:env` modules for environment variables
-
-**Default:** Import typed environment variables from `astro:env/client` and `astro:env/server`.
-
-```ts
----
-// src/pages/profile.astro
-import { API_URL } from "astro:env/client";
-import { API_SECRET } from "astro:env/server";
-
-const response = await fetch(`${API_URL}/profile`, {
-  headers: {
-    Authorization: `Bearer ${API_SECRET}`,
-  },
-});
----
-```
-
-**Reject:** Do not leak secrets into client code. Secret client variables are not supported.
-
-**Existing code:** If touched code reaches into environment variables loosely, migrate only the local reads first. citeturn11view1
-
-### Reject unsanitised `set:html`
-
-**Default:** Treat `set:html` as equivalent to setting `innerHTML`. Use it only for trusted or sanitised HTML.
-
-```astro
----
-const html = "<p>Trusted content</p>";
----
-
-<Fragment set:html={html} />
-```
-
-**Reject:** Do not pipe user-generated or untrusted remote HTML straight into `set:html`.
-
-**Existing code:** If touched code already uses `set:html` with uncertain input, surface it immediately as a security concern even if you do not broaden the refactor. citeturn9view0
-
-### Enable CSP only when the project is ready for its constraints
-
-**Conditional:** Astro 6 adds built-in `security.csp`. Enable it when the project has a real CSP requirement and can verify compatibility via `build` and `preview`.
-
-**Fallback:** If the project does not already require CSP, keep the default and focus on sanitisation, typed env access, and authorisation checks.
-
-**Risk:** Astro’s CSP support is not available in dev mode, does not support Astro’s `<ClientRouter />`, and has limitations around external scripts/styles and Shiki unless you provide appropriate hashes or alternatives.
-
-**Existing code:** Do not switch CSP on as a side effect of an unrelated feature branch. citeturn11view5
-
-## Testing, Tooling & Verification
-
-Use repository scripts first. If the repository does not provide a script, fall back to the official Astro or Bun command.
-
-| Trigger | Run | Failure means |
-|---|---|---|
-| Dependency or lockfile change | `bun install` and commit the resulting lockfile change intentionally | Dependency graph drift or unresolved install incompatibility. citeturn34search5turn34search11 |
-| Any meaningful code change | `bun run build` if present, otherwise `bunx astro build` | Route, integration, SSR/SSG, or asset pipeline breakage. citeturn37view0 |
-| Any `.astro`, content schema, TS, or integration change | `bun run check` if present, otherwise `bunx astro check` | Astro diagnostics or TypeScript errors; this is the main CI-grade structural check. citeturn37view0turn36search5 |
-| Stale generated Astro types suspected | `bunx astro sync` | Generated `.astro/types.d.ts` and related types were stale. Note that `dev`, `build`, and `check` already run sync. citeturn37view0 |
-| Repository already uses tests | the repository’s existing `bun run test`, `bun test`, or other test script | Behavioural regression in the project’s existing test stack. Do not add a new test runner only to satisfy this playbook. citeturn36search1turn22search2 |
-| Bun-runtime-specific work | the repository’s Bun-targeted script, or `bunx --bun astro dev` for local parity when the repo intentionally targets Bun runtime | Bun-only incompatibility that may not appear when Astro falls back to Node execution. citeturn35search1turn36search1 |
-
-Practical verification order for a normal feature branch:
-
-1. Install or update dependencies with Bun.
-2. Run the project’s type/diagnostic check.
-3. Run the build.
-4. Run focused tests if the repository already has them.
-5. If the task changes runtime-sensitive behaviour and the repo explicitly targets Bun runtime, verify with the Bun runtime path as well. citeturn34search5turn37view0turn35search1
-
-## Migration & Anti-Patterns
-
-| Reject | Use instead | Existing-code migration |
-|---|---|---|
-| Svelte 4 syntax in new code: `export let`, `on:`, `createEventDispatcher`, `beforeUpdate`, `afterUpdate` | Svelte 5 runes, callback props, `onclick`, `$effect` / `$effect.pre`, snippets | Keep stable old components untouched. When editing a component deeply, migrate that component only. citeturn19view0turn17view3turn17view5 |
-| New slot-based Svelte component APIs | Snippet props and `{@render ...}` | Leave working slot APIs until touched; migrate only the touched interface. citeturn18view2turn17view5 |
-| Solid prop destructuring and React-style effect misuse | Prop object reads, `splitProps` / `mergeProps`, `createMemo` for derived state, `createEffect` for side effects only | Replace only the stale local pattern being edited. citeturn22search0turn20search1turn20search10turn24search1turn24search2 |
-| `array.map()` for reactive Solid lists by habit | `<For>` or `<Index>` based on list stability | Migrate only dynamic/touched lists. Static one-off rendering can remain. citeturn26search0 |
-| Astro pages that mimic another meta-framework’s router or link API | File routes in `src/pages/**` and standard `<a>` links | Preserve URLs; change only the touched route surface. citeturn7view5turn37view0 |
-| Blanket `client:load` or `client:only` for all framework components | SSR by default plus the lightest suitable `client:*` directive | Downgrade the touched island when safe; do not audit the whole site unless asked. citeturn7view1turn9view0 |
-| Runtime-generated Uno class names | Static maps, `class:list`, `safelist`, or explicit content scanning | Replace local dynamic strings first. If utilities live in `.ts` / `.js`, add scanning or `@unocss-include`. citeturn31view2turn31view0turn7view0 |
-| Adding `@unocss/reset` alongside `presetWind4` reset usage | `presetWind4({ preflights: { reset: true } })` | Remove duplicate/reset drift only where touched. citeturn30view0turn30view1 |
-| Using Actions without auth checks because they “feel internal” | Per-action auth/authorisation, same as API routes | Add checks to touched actions first; gate globally via middleware only if truly shared. citeturn13view2turn13view0turn13view1 |
-| Introducing `shadcn/ui` or `shadcn-svelte` as a default dependency for this stack | Plain Astro/Svelte/Solid components with UnoCSS, or existing shadcn adoption if already present | Keep existing shadcn code if the repo uses it; do not introduce it in unrelated changes. citeturn5view2turn4view6turn33search10 |
-
-## Quick Reference
-
-### Preferred defaults
-
-- Routes, layouts, and framework composition: `.astro` first. citeturn7view5turn7view1
-- Small interaction on static markup: Astro `<script>`. citeturn11view2
-- Interactive island: Svelte or Solid with the lightest `client:*` directive that satisfies UX. citeturn9view0turn7view1
-- Internal server mutations: Astro Actions. citeturn12view0
-- Public/webhook/resource URLs: Astro endpoints. citeturn7view3
-- Utility CSS: UnoCSS `@unocss/astro` + `presetWind4()`. citeturn29view0turn29view3
-- Repeated style bundles: Uno shortcuts, sparingly. citeturn32search20
-- Conditional classes in `.astro`: `class:list`. citeturn7view0
-- New Svelte files: Svelte 5 syntax. citeturn17view0turn19view0
-- New Solid files: signals, memos, control-flow primitives, no prop destructuring. citeturn22search0turn24search1turn26search0
-- Environment variables: `astro:env/client` and `astro:env/server`. citeturn11view1
-
-### Use this, not that
-
-| Use this | Not that |
-|---|---|
-| `.astro` route files | SvelteKit/SolidStart router patterns in Astro |
-| `<a href="/path/">` | framework `<Link>` in Astro pages |
-| SSR by default + `client:*` where needed | blanket `client:only` |
-| Astro `<script>` for trivial DOM work | an island for every click handler |
-| Actions for internal mutations | bespoke internal `/api/*` if no public API is needed |
-| Static class maps and `class:list` | runtime utility-string concatenation |
-| `presetWind4({ preflights: { reset: true } })` | extra reset packages layered on top |
-| Svelte `$props`, callbacks, snippets | `export let`, `createEventDispatcher`, new slot-heavy APIs |
-| Solid `createMemo` for derived state | setting signals inside `createEffect` for pure derivation |
-| `splitProps` / `mergeProps` | eager Solid prop destructuring |
-
-### File-location cheat sheet
-
-- `src/pages/**` — routes and endpoints. citeturn7view5turn7view3
-- `src/layouts/**` — Astro layout components.
-- `src/components/**` — Astro, Svelte, and Solid UI components. Keep `client:only` components here unless Uno content scanning is configured otherwise. citeturn29view0
-- `src/actions/index.ts` — Astro Actions entry point; split into imported modules if needed. citeturn12view4
-- `src/content.config.ts` — content collections, schemas, and loaders. citeturn7view2
-- `astro.config.*` — integrations, adapters, Astro runtime config. citeturn36search11
-- `uno.config.ts` — Uno presets, shortcuts, safelist, content scanning. citeturn29view0turn29view2
-- `svelte.config.js` — Svelte preprocess and integration-level compiler options. citeturn15view0
-- `tsconfig.json` — project TS settings, including Solid’s `jsxImportSource` when using TSX. citeturn14view0
-
-### Verification commands
-
-- Install/update deps: `bun install` citeturn34search5turn34search11
-- Check Astro/project diagnostics: `bun run check` or `bunx astro check` citeturn37view0turn36search5
-- Generate Astro types when needed: `bunx astro sync` citeturn37view0
-- Build for deployment: `bun run build` or `bunx astro build` citeturn37view0
-- Run repo tests if present: `bun run test` or `bun test` citeturn36search1turn22search2
-- Bun-runtime parity check when explicitly relevant: `bunx --bun astro dev` citeturn35search1turn36search1
-
-### Top anti-drift warnings
-
-- Astro is not SvelteKit and not SolidStart. Keep routing and data conventions Astro-native. citeturn7view5
-- UnoCSS is not Tailwind tooling. `presetWind4` gives Tailwind-v4-style utilities, but extraction, config, and shadcn setup assumptions still differ. citeturn29view3turn31view2turn5view2turn4view6
-- Svelte 5 is not “Svelte 4 forever”. New code should not keep reproducing deprecated event/props/slot patterns. citeturn19view0turn17view3turn17view5
-- Solid is not React with different imports. Do not destructure props casually, and do not use effects for pure derivation. citeturn22search0turn24search1turn24search2
-- shadcn is not a default fit for this stack. Adopt only when the repository already committed to it or the task explicitly requires it. citeturn5view2turn4view6turn33search10
