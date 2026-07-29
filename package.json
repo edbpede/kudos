@@ -11,10 +11,10 @@
 		"test": "bun test"
 	},
 	"dependencies": {
-		"@astrojs/svelte": "^8.1.1",
-		"@astrojs/vercel": "^10.0.7",
+		"@astrojs/svelte": "^9.0.0",
+		"@astrojs/vercel": "^11.0.0",
 		"@unocss/preset-wind4": "^66.6.8",
-		"astro": "^6.3.3",
+		"astro": "^7.0.0",
 		"svelte": "^5.55.7",
 		"unocss": "^66.6.8",
 		"zod": "^4.2.0"
