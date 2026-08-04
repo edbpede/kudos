@@ -58,18 +58,29 @@ jobs:
           # name `localhost`, which can resolve to ::1 first, while the probes
           # below dial IPv4 literally.
           #
-          # Astro 7 runs `astro dev` as a managed background daemon: the command
-          # we launch here returns as soon as the daemon is up, so `$!` is the
-          # short-lived launcher, not the server, and killing it would be a no-op
-          # that merely looks like cleanup. `astro dev stop` is the documented
-          # way to shut the daemon down, so the trap uses that instead.
-          bun run dev -- --host 127.0.0.1 --port 4321
-          trap 'bunx astro dev stop >/dev/null 2>&1 || true' EXIT
+          # Astro 7 runs `astro dev` as a managed daemon: the command below can
+          # return as soon as the server is up, leaving it running in the
+          # background, and only `astro dev stop` shuts that down. It may also
+          # stay in the foreground. This handles both — backgrounding covers the
+          # foreground case, and the trap performs both kinds of cleanup, with
+          # whichever one does not apply being a harmless no-op. Do not
+          # "simplify" it to only `kill` or only `stop`: each alone silently
+          # fails to clean up in one of the two modes, and a surviving daemon
+          # holds this step's stdout open, which hangs the job until its timeout.
+          #
+          # Server output is redirected to a file for the same reason: a
+          # background process inheriting the step's stdout keeps the runner
+          # waiting on the pipe even after the script itself has finished.
+          bun run dev -- --host 127.0.0.1 --port 4321 >"${RUNNER_TEMP}/dev.log" 2>&1 &
+          server=$!
+          trap 'bunx astro dev stop >/dev/null 2>&1; kill "${server}" 2>/dev/null || true' EXIT
 
           # Readiness loop, deliberately NOT `curl --retry`: this distinguishes
           # "not up yet" from "up but broken", so a real 500 fails fast instead
-          # of being retried into a timeout.
-          timeout 90 bash -c 'until curl -fsS -o /dev/null http://127.0.0.1:4321/; do sleep 1; done'
+          # of being retried into a timeout. The server log is printed on failure,
+          # since it is no longer on the step's own stdout.
+          timeout 90 bash -c 'until curl -fsS -o /dev/null http://127.0.0.1:4321/; do sleep 1; done' \
+            || { echo "SMOKE FAILED: dev server never became ready"; cat "${RUNNER_TEMP}/dev.log"; exit 1; }
 
           # Assert on CONTENT, not just status — a 200 error page would sail
           # through a status-only check.
