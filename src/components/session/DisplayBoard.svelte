@@ -2,16 +2,13 @@
 import { onMount } from "svelte";
 import { deriveDisplayState } from "../../lib/domain/session";
 import type { ClassroomSession, DisplayState } from "../../lib/domain/types";
-import {
-	liveRetryDecision,
-	nextLivePollDelayMs,
-} from "../../lib/liveSessionRetry";
+import { liveRetryDecision, nextLivePollDelayMs } from "../../lib/liveSessionRetry";
 import { ACTIVE_SESSION_KEY } from "../../lib/persistence/localTemplateStore";
 
 interface Props {
-	mode: "local" | "live";
-	sessionId?: string;
-	displayToken?: string;
+  mode: "local" | "live";
+  sessionId?: string;
+  displayToken?: string;
 }
 
 let { mode, sessionId = "", displayToken = "" }: Props = $props();
@@ -28,136 +25,130 @@ let liveFailureCount = 0;
 let unmounted = false;
 
 const totalStars = (state: DisplayState) =>
-	state.students.reduce((sum, student) => sum + student.total, 0);
+  state.students.reduce((sum, student) => sum + student.total, 0);
 const topTotal = (state: DisplayState) =>
-	Math.max(0, ...state.students.map((student) => student.total));
+  Math.max(0, ...state.students.map((student) => student.total));
 const formatRuleStars = (stars: number) => `${stars > 0 ? "+" : ""}${stars}`;
 const gridMin = (state: DisplayState) => {
-	if (state.students.length > 45) return "7rem";
-	if (state.students.length > 35) return "8.5rem";
-	return "12rem";
+  if (state.students.length > 45) return "7rem";
+  if (state.students.length > 35) return "8.5rem";
+  return "12rem";
 };
 const liveDisplayApiUrl = () =>
-	`/api/session/${sessionId}/display?token=${encodeURIComponent(displayToken)}`;
+  `/api/session/${sessionId}/display?token=${encodeURIComponent(displayToken)}`;
 const formatDelay = (delayMs: number) =>
-	`${Math.max(1, Math.ceil(delayMs / 1000))} second${
-		Math.ceil(delayMs / 1000) === 1 ? "" : "s"
-	}`;
+  `${Math.max(1, Math.ceil(delayMs / 1000))} second${Math.ceil(delayMs / 1000) === 1 ? "" : "s"}`;
 
 interface DisplayApiResult {
-	ok?: boolean;
-	code?: string;
-	message?: string;
-	displayState?: DisplayState;
+  ok?: boolean;
+  code?: string;
+  message?: string;
+  displayState?: DisplayState;
 }
 
 const loadLocal = () => {
-	const raw = window.localStorage.getItem(ACTIVE_SESSION_KEY);
-	if (!raw) {
-		message = "No local display session found.";
-		return;
-	}
-	displayState = deriveDisplayState(JSON.parse(raw) as ClassroomSession);
-	message = "Local display ready.";
+  const raw = window.localStorage.getItem(ACTIVE_SESSION_KEY);
+  if (!raw) {
+    message = "No local display session found.";
+    return;
+  }
+  displayState = deriveDisplayState(JSON.parse(raw) as ClassroomSession);
+  message = "Local display ready.";
 };
 
 const clearLiveTimer = () => {
-	if (!liveTimer) return;
-	clearTimeout(liveTimer);
-	liveTimer = undefined;
+  if (!liveTimer) return;
+  clearTimeout(liveTimer);
+  liveTimer = undefined;
 };
 
 const scheduleLive = (delayMs: number) => {
-	if (unmounted || liveStopped) return;
-	clearLiveTimer();
-	liveTimer = setTimeout(() => void loadLive(), delayMs);
+  if (unmounted || liveStopped) return;
+  clearLiveTimer();
+  liveTimer = setTimeout(() => void loadLive(), delayMs);
 };
 
 const loadLive = async (manual = false) => {
-	if (liveInFlight) {
-		if (!manual) return;
-		liveAbortController?.abort();
-	}
-	const requestId = ++liveRequestId;
-	const controller = new AbortController();
-	liveAbortController = controller;
-	liveInFlight = true;
-	reconnecting = manual;
-	let nextDelayMs: number | null = null;
-	try {
-		const response = await fetch(liveDisplayApiUrl(), {
-			signal: controller.signal,
-		});
-		const body = (await response.json()) as DisplayApiResult;
-		if (unmounted || requestId !== liveRequestId) return;
-		if (body.displayState) displayState = body.displayState;
-		if (!response.ok || !body.ok) {
-			const decision = liveRetryDecision({
-				code: body.code,
-				failureCount: liveFailureCount + 1,
-			});
-			if (!decision.retry) {
-				liveStopped = true;
-				liveFailureCount = 0;
-				message = body.message ?? "The live session is unavailable.";
-				return;
-			}
-			liveFailureCount = decision.failureCount;
-			nextDelayMs = decision.delayMs;
-			message = `${
-				body.message ?? "Live display is temporarily unavailable."
-			} Reconnecting in ${formatDelay(nextDelayMs)}…`;
-			return;
-		}
-		liveFailureCount = 0;
-		liveStopped = false;
-		nextDelayMs = nextLivePollDelayMs(
-			body.displayState?.preferences.pollIntervalMs,
-		);
-		message = manual ? "Live display reconnected." : "Live display connected.";
-	} catch {
-		if (unmounted || controller.signal.aborted || requestId !== liveRequestId)
-			return;
-		const decision = liveRetryDecision({
-			failureCount: liveFailureCount + 1,
-		});
-		if (!decision.retry) return;
-		liveFailureCount = decision.failureCount;
-		nextDelayMs = decision.delayMs;
-		message = `Connection lost. Reconnecting in ${formatDelay(nextDelayMs)}…`;
-	} finally {
-		if (requestId === liveRequestId) {
-			liveInFlight = false;
-			liveAbortController = undefined;
-			if (!unmounted) reconnecting = false;
-			if (!unmounted && !liveStopped && nextDelayMs !== null)
-				scheduleLive(nextDelayMs);
-		}
-	}
+  if (liveInFlight) {
+    if (!manual) return;
+    liveAbortController?.abort();
+  }
+  const requestId = ++liveRequestId;
+  const controller = new AbortController();
+  liveAbortController = controller;
+  liveInFlight = true;
+  reconnecting = manual;
+  let nextDelayMs: number | null = null;
+  try {
+    const response = await fetch(liveDisplayApiUrl(), {
+      signal: controller.signal,
+    });
+    const body = (await response.json()) as DisplayApiResult;
+    if (unmounted || requestId !== liveRequestId) return;
+    if (body.displayState) displayState = body.displayState;
+    if (!response.ok || !body.ok) {
+      const decision = liveRetryDecision({
+        code: body.code,
+        failureCount: liveFailureCount + 1,
+      });
+      if (!decision.retry) {
+        liveStopped = true;
+        liveFailureCount = 0;
+        message = body.message ?? "The live session is unavailable.";
+        return;
+      }
+      liveFailureCount = decision.failureCount;
+      nextDelayMs = decision.delayMs;
+      message = `${
+        body.message ?? "Live display is temporarily unavailable."
+      } Reconnecting in ${formatDelay(nextDelayMs)}…`;
+      return;
+    }
+    liveFailureCount = 0;
+    liveStopped = false;
+    nextDelayMs = nextLivePollDelayMs(body.displayState?.preferences.pollIntervalMs);
+    message = manual ? "Live display reconnected." : "Live display connected.";
+  } catch {
+    if (unmounted || controller.signal.aborted || requestId !== liveRequestId) return;
+    const decision = liveRetryDecision({
+      failureCount: liveFailureCount + 1,
+    });
+    if (!decision.retry) return;
+    liveFailureCount = decision.failureCount;
+    nextDelayMs = decision.delayMs;
+    message = `Connection lost. Reconnecting in ${formatDelay(nextDelayMs)}…`;
+  } finally {
+    if (requestId === liveRequestId) {
+      liveInFlight = false;
+      liveAbortController = undefined;
+      if (!unmounted) reconnecting = false;
+      if (!unmounted && !liveStopped && nextDelayMs !== null) scheduleLive(nextDelayMs);
+    }
+  }
 };
 
 const reconnectLive = () => {
-	if (mode !== "live") return;
-	clearLiveTimer();
-	liveStopped = false;
-	liveFailureCount = 0;
-	void loadLive(true);
+  if (mode !== "live") return;
+  clearLiveTimer();
+  liveStopped = false;
+  liveFailureCount = 0;
+  void loadLive(true);
 };
 
 onMount(() => {
-	if (mode === "local") {
-		loadLocal();
-		localTimer = setInterval(loadLocal, 750);
-	} else {
-		void loadLive();
-	}
+  if (mode === "local") {
+    loadLocal();
+    localTimer = setInterval(loadLocal, 750);
+  } else {
+    void loadLive();
+  }
 
-	return () => {
-		unmounted = true;
-		if (localTimer) clearInterval(localTimer);
-		clearLiveTimer();
-		liveAbortController?.abort();
-	};
+  return () => {
+    unmounted = true;
+    if (localTimer) clearInterval(localTimer);
+    clearLiveTimer();
+    liveAbortController?.abort();
+  };
 });
 </script>
 

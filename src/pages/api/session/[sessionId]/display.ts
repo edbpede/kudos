@@ -6,42 +6,40 @@ import { getRelay } from "../../../../lib/server/relay";
 import { normalizeError } from "../../../../lib/validation/errors";
 
 const json = (body: unknown, status = 200) =>
-	new Response(JSON.stringify(body), {
-		status,
-		headers: {
-			"content-type": "application/json",
-			"cache-control": "no-store",
-		},
-	});
+  new Response(JSON.stringify(body), {
+    status,
+    headers: {
+      "content-type": "application/json",
+      "cache-control": "no-store",
+    },
+  });
 
 export const GET: APIRoute = async ({ params, request, url }) => {
-	const sessionId = params.sessionId ?? "";
-	const token = url.searchParams.get("token") ?? "";
-	try {
-		const displayState = token
-			? await getRelay().readDisplay(sessionId, token)
-			: await getRelay().readTeacher(sessionId, readBearerToken(request));
-		return json({ ok: true, displayState });
-	} catch (error) {
-		if (
-			error instanceof RelayError &&
-			(error.code === "EXPIRED" ||
-				error.code === "NOT_FOUND" ||
-				error.code === "PURGED")
-		) {
-			return json(
-				{
-					ok: false,
-					code: error.code,
-					message: error.message,
-					displayState: expiredDisplayState(sessionId),
-				},
-				error.code === "EXPIRED" ? 410 : 404,
-			);
-		}
-		return json(
-			normalizeError(error),
-			error instanceof RelayError && error.code === "UNAUTHORIZED" ? 401 : 400,
-		);
-	}
+  const sessionId = params.sessionId ?? "";
+  const token = url.searchParams.get("token") ?? "";
+  try {
+    const displayState = token
+      ? await getRelay().readDisplay(sessionId, token)
+      : await getRelay().readTeacher(sessionId, readBearerToken(request));
+    return json({ ok: true, displayState });
+  } catch (error) {
+    if (
+      error instanceof RelayError &&
+      (error.code === "EXPIRED" || error.code === "NOT_FOUND" || error.code === "PURGED")
+    ) {
+      return json(
+        {
+          ok: false,
+          code: error.code,
+          message: error.message,
+          displayState: expiredDisplayState(sessionId),
+        },
+        error.code === "EXPIRED" ? 410 : 404,
+      );
+    }
+    return json(
+      normalizeError(error),
+      error instanceof RelayError && error.code === "UNAUTHORIZED" ? 401 : 400,
+    );
+  }
 };

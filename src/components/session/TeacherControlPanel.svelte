@@ -1,45 +1,41 @@
 <script lang="ts">
 import { onMount } from "svelte";
 import {
-	applyStarEvent,
-	createBulkStarEventInputs,
-	deriveDisplayState,
-	endSession,
-	reactivateSession,
-	resetSession,
-	undoLastEvent,
+  applyStarEvent,
+  createBulkStarEventInputs,
+  deriveDisplayState,
+  endSession,
+  reactivateSession,
+  resetSession,
+  undoLastEvent,
 } from "../../lib/domain/session";
-import type {
-	ClassroomSession,
-	DisplayState,
-	StarDelta,
-} from "../../lib/domain/types";
+import type { ClassroomSession, DisplayState, StarDelta } from "../../lib/domain/types";
 import { isTerminalLiveErrorCode } from "../../lib/liveSessionRetry";
 import { ACTIVE_SESSION_KEY } from "../../lib/persistence/localTemplateStore";
 
 interface Props {
-	mode: "local" | "live";
-	sessionId?: string;
-	teacherToken?: string;
+  mode: "local" | "live";
+  sessionId?: string;
+  teacherToken?: string;
 }
 
 interface CachedLiveSession {
-	displayState?: DisplayState;
-	displayUrl?: string;
-	displayToken?: string;
-	expiresAt?: string;
-	sessionId?: string;
-	teacherToken?: string;
-	teacherUrl?: string;
-	[key: string]: unknown;
+  displayState?: DisplayState;
+  displayUrl?: string;
+  displayToken?: string;
+  expiresAt?: string;
+  sessionId?: string;
+  teacherToken?: string;
+  teacherUrl?: string;
+  [key: string]: unknown;
 }
 
 interface LiveApiResult {
-	ok?: boolean;
-	displayState?: DisplayState;
-	purged?: boolean;
-	code?: string;
-	message?: string;
+  ok?: boolean;
+  displayState?: DisplayState;
+  purged?: boolean;
+  code?: string;
+  message?: string;
 }
 
 let { mode, sessionId = "", teacherToken = "" }: Props = $props();
@@ -52,332 +48,301 @@ let busy = $state(false);
 
 const liveStorageKey = () => `kudos.live.${sessionId}`;
 const totalStars = (state: DisplayState) =>
-	state.students.reduce((sum, student) => sum + student.total, 0);
+  state.students.reduce((sum, student) => sum + student.total, 0);
 const active = (state: DisplayState | null) => state?.status === "active";
 const hasRemovableStars = (state: DisplayState | null) =>
-	state?.students.some((student) => student.total > 0) ?? false;
+  state?.students.some((student) => student.total > 0) ?? false;
 const statusLabel = (state: DisplayState | null) =>
-	state ? state.status.toUpperCase() : "WAITING";
+  state ? state.status.toUpperCase() : "WAITING";
 const cleanupLiveMetadata = () => {
-	window.localStorage.removeItem(liveStorageKey());
-	displayUrl = "";
+  window.localStorage.removeItem(liveStorageKey());
+  displayUrl = "";
 };
 const shouldClearLiveMetadata = (code: unknown) =>
-	code === "EXPIRED" || code === "NOT_FOUND" || code === "PURGED";
+  code === "EXPIRED" || code === "NOT_FOUND" || code === "PURGED";
 const readCachedLiveRecord = () => {
-	const raw = window.localStorage.getItem(liveStorageKey());
-	if (!raw) return null;
-	return JSON.parse(raw) as CachedLiveSession;
+  const raw = window.localStorage.getItem(liveStorageKey());
+  if (!raw) return null;
+  return JSON.parse(raw) as CachedLiveSession;
 };
 const displayTokenFromUrl = (url: string | undefined) => {
-	if (!url) return "";
-	try {
-		return new URL(url, window.location.origin).searchParams.get("token") ?? "";
-	} catch {
-		return "";
-	}
+  if (!url) return "";
+  try {
+    return new URL(url, window.location.origin).searchParams.get("token") ?? "";
+  } catch {
+    return "";
+  }
 };
 const displayApiUrlFor = (record: CachedLiveSession | null) => {
-	const token =
-		record?.displayToken ??
-		displayTokenFromUrl(record?.displayUrl ?? displayUrl);
-	return token
-		? `/api/session/${sessionId}/display?token=${encodeURIComponent(token)}`
-		: "";
+  const token = record?.displayToken ?? displayTokenFromUrl(record?.displayUrl ?? displayUrl);
+  return token ? `/api/session/${sessionId}/display?token=${encodeURIComponent(token)}` : "";
 };
 const teacherReadRequest = () =>
-	teacherToken
-		? {
-				url: `/api/session/${sessionId}/display`,
-				init: { headers: { authorization: `Bearer ${teacherToken}` } },
-			}
-		: null;
+  teacherToken
+    ? {
+        url: `/api/session/${sessionId}/display`,
+        init: { headers: { authorization: `Bearer ${teacherToken}` } },
+      }
+    : null;
 
 const saveLocal = (next: ClassroomSession) => {
-	session = next;
-	displayState = deriveDisplayState(next);
-	window.localStorage.setItem(ACTIVE_SESSION_KEY, JSON.stringify(next));
-	message = "Session updated.";
+  session = next;
+  displayState = deriveDisplayState(next);
+  window.localStorage.setItem(ACTIVE_SESSION_KEY, JSON.stringify(next));
+  message = "Session updated.";
 };
 
 const loadLocal = () => {
-	const raw = window.localStorage.getItem(ACTIVE_SESSION_KEY);
-	if (!raw) {
-		message = "No local session found. Return to setup to start one.";
-		return;
-	}
-	const next = JSON.parse(raw) as ClassroomSession;
-	session = next;
-	displayState = deriveDisplayState(next);
-	displayUrl = `${window.location.origin}/local/display`;
-	message = "Local teacher controls are ready.";
+  const raw = window.localStorage.getItem(ACTIVE_SESSION_KEY);
+  if (!raw) {
+    message = "No local session found. Return to setup to start one.";
+    return;
+  }
+  const next = JSON.parse(raw) as ClassroomSession;
+  session = next;
+  displayState = deriveDisplayState(next);
+  displayUrl = `${window.location.origin}/local/display`;
+  message = "Local teacher controls are ready.";
 };
 
 const loadLive = () => {
-	let record: CachedLiveSession | null = null;
-	try {
-		record = readCachedLiveRecord();
-	} catch {
-		cleanupLiveMetadata();
-		message = "Live session metadata was invalid and has been cleaned up.";
-		return;
-	}
-	if (record?.expiresAt && Date.parse(record.expiresAt) <= Date.now()) {
-		cleanupLiveMetadata();
-		displayState = null;
-		message = "Live session metadata expired and has been cleaned up.";
-		return;
-	}
-	displayState = record?.displayState ?? null;
-	displayUrl = record?.displayUrl ?? "";
-	message = displayState
-		? "Live teacher controls are ready."
-		: "Live session metadata was not found in this browser.";
+  let record: CachedLiveSession | null = null;
+  try {
+    record = readCachedLiveRecord();
+  } catch {
+    cleanupLiveMetadata();
+    message = "Live session metadata was invalid and has been cleaned up.";
+    return;
+  }
+  if (record?.expiresAt && Date.parse(record.expiresAt) <= Date.now()) {
+    cleanupLiveMetadata();
+    displayState = null;
+    message = "Live session metadata expired and has been cleaned up.";
+    return;
+  }
+  displayState = record?.displayState ?? null;
+  displayUrl = record?.displayUrl ?? "";
+  message = displayState
+    ? "Live teacher controls are ready."
+    : "Live session metadata was not found in this browser.";
 };
 
 onMount(() => {
-	if (mode === "local") loadLocal();
-	else loadLive();
+  if (mode === "local") loadLocal();
+  else loadLive();
 });
 
 const updateLiveStorage = (body: { displayState?: DisplayState }) => {
-	if (!body.displayState) return;
-	displayState = body.displayState;
-	const record = readCachedLiveRecord() ?? {};
-	window.localStorage.setItem(
-		liveStorageKey(),
-		JSON.stringify({ ...record, displayState }),
-	);
+  if (!body.displayState) return;
+  displayState = body.displayState;
+  const record = readCachedLiveRecord() ?? {};
+  window.localStorage.setItem(liveStorageKey(), JSON.stringify({ ...record, displayState }));
 };
 
 const requestLive = async (path: string, body: unknown = {}) => {
-	const response = await fetch(`/api/session/${sessionId}/${path}`, {
-		method: "POST",
-		headers: {
-			authorization: `Bearer ${teacherToken}`,
-			"content-type": "application/json",
-		},
-		body: JSON.stringify(body),
-	});
-	const result = (await response.json()) as LiveApiResult;
-	if (!response.ok || !result.ok) {
-		if (shouldClearLiveMetadata(result.code)) cleanupLiveMetadata();
-		throw new Error(result.message ?? "Live update failed.");
-	}
-	updateLiveStorage(result);
-	return result;
+  const response = await fetch(`/api/session/${sessionId}/${path}`, {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${teacherToken}`,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+  const result = (await response.json()) as LiveApiResult;
+  if (!response.ok || !result.ok) {
+    if (shouldClearLiveMetadata(result.code)) cleanupLiveMetadata();
+    throw new Error(result.message ?? "Live update failed.");
+  }
+  updateLiveStorage(result);
+  return result;
 };
 
 const callLive = async (path: string, body: unknown = {}) => {
-	busy = true;
-	try {
-		const result = await requestLive(path, body);
-		message = "Live session updated.";
-		return result;
-	} catch (error) {
-		message = error instanceof Error ? error.message : "Live update failed.";
-	} finally {
-		busy = false;
-	}
+  busy = true;
+  try {
+    const result = await requestLive(path, body);
+    message = "Live session updated.";
+    return result;
+  } catch (error) {
+    message = error instanceof Error ? error.message : "Live update failed.";
+  } finally {
+    busy = false;
+  }
 };
 
 const reconnectLive = async () => {
-	if (mode !== "live") return;
-	busy = true;
-	try {
-		let record: CachedLiveSession | null = null;
-		try {
-			record = readCachedLiveRecord();
-		} catch {
-			cleanupLiveMetadata();
-			displayState = null;
-			message = "Live session metadata was invalid and has been cleaned up.";
-			return;
-		}
-		if (record?.expiresAt && Date.parse(record.expiresAt) <= Date.now()) {
-			cleanupLiveMetadata();
-			displayState = null;
-			message = "Live session metadata expired and has been cleaned up.";
-			return;
-		}
-		displayUrl = record?.displayUrl ?? displayUrl;
-		const apiUrl = displayApiUrlFor(record);
-		const teacherRequest = apiUrl ? null : teacherReadRequest();
-		if (!apiUrl && !teacherRequest) {
-			message =
-				"Reconnect needs the saved display token or teacher link token. Reopen the live teacher link from setup.";
-			return;
-		}
-		const response = await fetch(
-			apiUrl || teacherRequest?.url || "",
-			teacherRequest?.init,
-		);
-		const result = (await response.json()) as LiveApiResult;
-		if (!response.ok || !result.ok) {
-			if (isTerminalLiveErrorCode(result.code)) {
-				if (
-					result.code === "EXPIRED" ||
-					result.code === "NOT_FOUND" ||
-					result.code === "PURGED"
-				)
-					cleanupLiveMetadata();
-				displayState = result.displayState ?? null;
-			}
-			message =
-				result.message ??
-				(isTerminalLiveErrorCode(result.code)
-					? "The live session is unavailable."
-					: "Live reconnect failed. Try again in a moment.");
-			return;
-		}
-		if (result.displayState) updateLiveStorage(result);
-		message = teacherRequest
-			? "Live session reconnected from the teacher link. Display link metadata is not saved in this browser."
-			: "Live session reconnected.";
-	} catch {
-		message =
-			"Live reconnect failed. The saved session was kept so you can try again.";
-	} finally {
-		busy = false;
-	}
+  if (mode !== "live") return;
+  busy = true;
+  try {
+    let record: CachedLiveSession | null = null;
+    try {
+      record = readCachedLiveRecord();
+    } catch {
+      cleanupLiveMetadata();
+      displayState = null;
+      message = "Live session metadata was invalid and has been cleaned up.";
+      return;
+    }
+    if (record?.expiresAt && Date.parse(record.expiresAt) <= Date.now()) {
+      cleanupLiveMetadata();
+      displayState = null;
+      message = "Live session metadata expired and has been cleaned up.";
+      return;
+    }
+    displayUrl = record?.displayUrl ?? displayUrl;
+    const apiUrl = displayApiUrlFor(record);
+    const teacherRequest = apiUrl ? null : teacherReadRequest();
+    if (!apiUrl && !teacherRequest) {
+      message =
+        "Reconnect needs the saved display token or teacher link token. Reopen the live teacher link from setup.";
+      return;
+    }
+    const response = await fetch(apiUrl || teacherRequest?.url || "", teacherRequest?.init);
+    const result = (await response.json()) as LiveApiResult;
+    if (!response.ok || !result.ok) {
+      if (isTerminalLiveErrorCode(result.code)) {
+        if (result.code === "EXPIRED" || result.code === "NOT_FOUND" || result.code === "PURGED")
+          cleanupLiveMetadata();
+        displayState = result.displayState ?? null;
+      }
+      message =
+        result.message ??
+        (isTerminalLiveErrorCode(result.code)
+          ? "The live session is unavailable."
+          : "Live reconnect failed. Try again in a moment.");
+      return;
+    }
+    if (result.displayState) updateLiveStorage(result);
+    message = teacherRequest
+      ? "Live session reconnected from the teacher link. Display link metadata is not saved in this browser."
+      : "Live session reconnected.";
+  } catch {
+    message = "Live reconnect failed. The saved session was kept so you can try again.";
+  } finally {
+    busy = false;
+  }
 };
 
 const add = (studentId: string) => {
-	if (mode === "local" && session)
-		saveLocal(applyStarEvent(session, { studentId, delta: 1 }));
-	else void callLive("event", { studentId, delta: 1 });
+  if (mode === "local" && session) saveLocal(applyStarEvent(session, { studentId, delta: 1 }));
+  else void callLive("event", { studentId, delta: 1 });
 };
 
 const remove = (studentId: string) => {
-	if (mode === "local" && session) {
-		try {
-			saveLocal(applyStarEvent(session, { studentId, delta: -1 }));
-		} catch (error) {
-			message =
-				error instanceof Error ? error.message : "Could not remove star.";
-		}
-	} else void callLive("event", { studentId, delta: -1 });
+  if (mode === "local" && session) {
+    try {
+      saveLocal(applyStarEvent(session, { studentId, delta: -1 }));
+    } catch (error) {
+      message = error instanceof Error ? error.message : "Could not remove star.";
+    }
+  } else void callLive("event", { studentId, delta: -1 });
 };
 
 const batchMessage = (delta: StarDelta, count: number) =>
-	`${delta === 1 ? "Added" : "Removed"} 1 star ${
-		delta === 1 ? "for" : "from"
-	} ${count} ${count === 1 ? "student" : "students"}.`;
+  `${delta === 1 ? "Added" : "Removed"} 1 star ${
+    delta === 1 ? "for" : "from"
+  } ${count} ${count === 1 ? "student" : "students"}.`;
 
 const applyLiveBatch = async (
-	inputs: Array<{ studentId: string; delta: StarDelta }>,
-	delta: StarDelta,
+  inputs: Array<{ studentId: string; delta: StarDelta }>,
+  delta: StarDelta,
 ) => {
-	// Live sessions still expose single-event writes, so bulk updates are
-	// sequential and report partial progress if a later request fails.
-	busy = true;
-	let completed = 0;
-	try {
-		for (const input of inputs) {
-			await requestLive("event", input);
-			completed += 1;
-		}
-		message = batchMessage(delta, completed);
-	} catch (error) {
-		const detail =
-			error instanceof Error ? error.message : "Live batch update failed.";
-		message =
-			completed > 0
-				? `${batchMessage(delta, completed)} ${inputs.length - completed} ${
-						inputs.length - completed === 1 ? "student was" : "students were"
-					} not updated. ${detail}`
-				: detail;
-	} finally {
-		busy = false;
-	}
+  // Live sessions still expose single-event writes, so bulk updates are
+  // sequential and report partial progress if a later request fails.
+  busy = true;
+  let completed = 0;
+  try {
+    for (const input of inputs) {
+      await requestLive("event", input);
+      completed += 1;
+    }
+    message = batchMessage(delta, completed);
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : "Live batch update failed.";
+    message =
+      completed > 0
+        ? `${batchMessage(delta, completed)} ${inputs.length - completed} ${
+            inputs.length - completed === 1 ? "student was" : "students were"
+          } not updated. ${detail}`
+        : detail;
+  } finally {
+    busy = false;
+  }
 };
 
 const applyAll = (delta: StarDelta) => {
-	if (!displayState || !active(displayState)) return;
-	const inputs = createBulkStarEventInputs(displayState, delta);
-	if (inputs.length === 0) {
-		message =
-			delta === -1
-				? "No students have stars to remove."
-				: "No students are available.";
-		return;
-	}
-	if (mode === "local") {
-		if (!session) {
-			message = "No local session found. Return to setup to start one.";
-			return;
-		}
-		try {
-			const next = inputs.reduce(
-				(current, input) => applyStarEvent(current, input),
-				session,
-			);
-			saveLocal(next);
-			message = batchMessage(delta, inputs.length);
-		} catch (error) {
-			message =
-				error instanceof Error ? error.message : "Could not update stars.";
-		}
-		return;
-	}
-	void applyLiveBatch(inputs, delta);
+  if (!displayState || !active(displayState)) return;
+  const inputs = createBulkStarEventInputs(displayState, delta);
+  if (inputs.length === 0) {
+    message = delta === -1 ? "No students have stars to remove." : "No students are available.";
+    return;
+  }
+  if (mode === "local") {
+    if (!session) {
+      message = "No local session found. Return to setup to start one.";
+      return;
+    }
+    try {
+      const next = inputs.reduce((current, input) => applyStarEvent(current, input), session);
+      saveLocal(next);
+      message = batchMessage(delta, inputs.length);
+    } catch (error) {
+      message = error instanceof Error ? error.message : "Could not update stars.";
+    }
+    return;
+  }
+  void applyLiveBatch(inputs, delta);
 };
 
 const undo = () => {
-	if (mode === "local" && session) {
-		try {
-			saveLocal(undoLastEvent(session));
-		} catch (error) {
-			message = error instanceof Error ? error.message : "Nothing to undo.";
-		}
-	} else void callLive("undo");
+  if (mode === "local" && session) {
+    try {
+      saveLocal(undoLastEvent(session));
+    } catch (error) {
+      message = error instanceof Error ? error.message : "Nothing to undo.";
+    }
+  } else void callLive("undo");
 };
 
 const reset = () => {
-	if (!confirm("Reset all stars for this session?")) return;
-	if (mode === "local" && session)
-		saveLocal(reactivateSession(resetSession(session)));
-	else
-		message =
-			"Live reset is intentionally not exposed; use undo or end/purge for remote sessions.";
+  if (!confirm("Reset all stars for this session?")) return;
+  if (mode === "local" && session) saveLocal(reactivateSession(resetSession(session)));
+  else
+    message = "Live reset is intentionally not exposed; use undo or end/purge for remote sessions.";
 };
 
 const end = () => {
-	if (!confirm("End this classroom session?")) return;
-	if (mode === "local" && session) saveLocal(endSession(session));
-	else
-		void callLive("end").then((result) => {
-			if (!result?.ok) return;
-			cleanupLiveMetadata();
-			message = "Live session ended and cleaned up.";
-		});
+  if (!confirm("End this classroom session?")) return;
+  if (mode === "local" && session) saveLocal(endSession(session));
+  else
+    void callLive("end").then((result) => {
+      if (!result?.ok) return;
+      cleanupLiveMetadata();
+      message = "Live session ended and cleaned up.";
+    });
 };
 
 const purge = () => {
-	if (
-		!confirm(
-			"Purge the temporary live session now? The display URL will expire immediately.",
-		)
-	)
-		return;
-	void callLive("end?purge=1").then((result) => {
-		if (!result?.ok) return;
-		cleanupLiveMetadata();
-		displayState = null;
-		message = "Live session purged.";
-	});
+  if (!confirm("Purge the temporary live session now? The display URL will expire immediately."))
+    return;
+  void callLive("end?purge=1").then((result) => {
+    if (!result?.ok) return;
+    cleanupLiveMetadata();
+    displayState = null;
+    message = "Live session purged.";
+  });
 };
 
 const copyDisplayUrl = () => {
-	if (!displayUrl) return;
-	void navigator.clipboard?.writeText(displayUrl)?.then(
-		() => {
-			message = "Display link copied.";
-		},
-		() => {
-			message = "Display link is ready below.";
-		},
-	);
+  if (!displayUrl) return;
+  void navigator.clipboard?.writeText(displayUrl)?.then(
+    () => {
+      message = "Display link copied.";
+    },
+    () => {
+      message = "Display link is ready below.";
+    },
+  );
 };
 </script>
 

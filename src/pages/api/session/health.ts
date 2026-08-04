@@ -2,13 +2,13 @@ import type { APIRoute } from "astro";
 import { getRelayDiagnostics } from "../../../lib/server/relay";
 
 const json = (body: unknown, status = 200) =>
-	new Response(JSON.stringify(body), {
-		status,
-		headers: {
-			"content-type": "application/json",
-			"cache-control": "no-store",
-		},
-	});
+  new Response(JSON.stringify(body), {
+    status,
+    headers: {
+      "content-type": "application/json",
+      "cache-control": "no-store",
+    },
+  });
 
 /**
  * Non-secret live-relay health check.
@@ -20,9 +20,9 @@ const json = (body: unknown, status = 200) =>
  * on /event. No credentials or session data are exposed.
  */
 export const GET: APIRoute = () => {
-	const diagnostics = getRelayDiagnostics();
-	return json({
-		ok: diagnostics.durable,
-		...diagnostics,
-	});
+  const diagnostics = getRelayDiagnostics();
+  return json({
+    ok: diagnostics.durable,
+    ...diagnostics,
+  });
 };

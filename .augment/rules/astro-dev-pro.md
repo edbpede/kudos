@@ -603,4 +603,3 @@ SvelteKit and SolidStart are full standalone app frameworks with their own routi
 - **Cross-island state:** nanostores (client-side only).
 - **Styling:** one `uno.config.ts` with `presetWind4`; `extractorSvelte()` + `transformerDirectives()`.
 - **Server work:** Astro Actions (typed RPC) and endpoints (`Request`/`Response`); content collections via loaders + Zod, keyed by `entry.id`.
-

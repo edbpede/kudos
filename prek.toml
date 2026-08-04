@@ -37,7 +37,9 @@ hooks = [
 [[repos]]
 repo = "local"
 hooks = [
-  { id = "biome", name = "Format and lint with Biome", entry = "bunx --bun @biomejs/biome check --write --no-errors-on-unmatched .", language = "system", pass_filenames = false },
+  # Uses the pinned @biomejs/biome devDependency via the `lint:fix` script, so the
+  # hook and CI always run the exact same version instead of an ad-hoc download.
+  { id = "biome", name = "Format and lint with Biome", entry = "bun run lint:fix", language = "system", pass_filenames = false },
   { id = "astro-check", name = "Astro type check", entry = "bun run check", language = "system", pass_filenames = false, stages = ["pre-push"] },
   { id = "tests", name = "Run test suite", entry = "bun test", language = "system", pass_filenames = false, stages = ["pre-push"] },
 ]

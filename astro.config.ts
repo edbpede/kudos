@@ -4,7 +4,7 @@ import { defineConfig } from "astro/config";
 import UnoCSS from "unocss/astro";
 
 export default defineConfig({
-	output: "server",
-	adapter: vercel(),
-	integrations: [UnoCSS(), svelte()],
+  output: "server",
+  adapter: vercel(),
+  integrations: [UnoCSS(), svelte()],
 });

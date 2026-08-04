@@ -1,27 +1,22 @@
 import {
-	LIVE_SESSION_DEFAULT_TTL_SECONDS,
-	LIVE_SESSION_MAX_TTL_SECONDS,
-	LIVE_SESSION_MIN_TTL_SECONDS,
+  LIVE_SESSION_DEFAULT_TTL_SECONDS,
+  LIVE_SESSION_MAX_TTL_SECONDS,
+  LIVE_SESSION_MIN_TTL_SECONDS,
 } from "../domain/liveSessionLifecycle";
 
 export const getLiveTtlSeconds = () => {
-	const raw = process.env.KUDOS_LIVE_TTL_SECONDS;
-	const parsed = raw
-		? Number.parseInt(raw, 10)
-		: LIVE_SESSION_DEFAULT_TTL_SECONDS;
-	return Number.isFinite(parsed)
-		? Math.min(
-				Math.max(parsed, LIVE_SESSION_MIN_TTL_SECONDS),
-				LIVE_SESSION_MAX_TTL_SECONDS,
-			)
-		: LIVE_SESSION_DEFAULT_TTL_SECONDS;
+  const raw = process.env.KUDOS_LIVE_TTL_SECONDS;
+  const parsed = raw ? Number.parseInt(raw, 10) : LIVE_SESSION_DEFAULT_TTL_SECONDS;
+  return Number.isFinite(parsed)
+    ? Math.min(Math.max(parsed, LIVE_SESSION_MIN_TTL_SECONDS), LIVE_SESSION_MAX_TTL_SECONDS)
+    : LIVE_SESSION_DEFAULT_TTL_SECONDS;
 };
 
 export interface RedisRestEnv {
-	url: string;
-	token: string;
-	/** Name of the env var pair that supplied the credentials (no secrets). */
-	source: string;
+  url: string;
+  token: string;
+  /** Name of the env var pair that supplied the credentials (no secrets). */
+  source: string;
 }
 
 /**
@@ -34,15 +29,15 @@ export interface RedisRestEnv {
  * missing this is what silently drops live sessions onto the in-memory fallback.
  */
 const REDIS_ENV_CANDIDATES: ReadonlyArray<{ url: string; token: string }> = [
-	{ url: "KV_REST_API_URL", token: "KV_REST_API_TOKEN" },
-	{ url: "UPSTASH_REDIS_REST_URL", token: "UPSTASH_REDIS_REST_TOKEN" },
+  { url: "KV_REST_API_URL", token: "KV_REST_API_TOKEN" },
+  { url: "UPSTASH_REDIS_REST_URL", token: "UPSTASH_REDIS_REST_TOKEN" },
 ];
 
 export const getRedisRestEnv = (): RedisRestEnv | null => {
-	for (const candidate of REDIS_ENV_CANDIDATES) {
-		const url = process.env[candidate.url]?.trim();
-		const token = process.env[candidate.token]?.trim();
-		if (url && token) return { url, token, source: candidate.url };
-	}
-	return null;
+  for (const candidate of REDIS_ENV_CANDIDATES) {
+    const url = process.env[candidate.url]?.trim();
+    const token = process.env[candidate.token]?.trim();
+    if (url && token) return { url, token, source: candidate.url };
+  }
+  return null;
 };
